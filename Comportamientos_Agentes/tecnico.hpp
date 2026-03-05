@@ -89,9 +89,6 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     instante = 0;
-    esperando_ingeniero = false;
-    destino_fila = -1;
-    destino_columna = -1;
   }
 
   /**
@@ -106,9 +103,6 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     instante = 0;
-    esperando_ingeniero = false;
-    destino_fila = -1;
-    destino_columna = -1;
   }
 
   ComportamientoTecnico(const ComportamientoTecnico &comport): Comportamiento(comport) {}
@@ -250,15 +244,6 @@ protected:
    */
   bool es_camino(unsigned char c) const;
 
-  /**
-   * @brief Traduce un índice del vector de sensores a coordenadas (fila, columna) reales.
-   * Soporta las 8 orientaciones posibles.
-   * @param sensor_idx Índice en el vector de sensores (0-15).
-   * @param sensores Referencia a los sensores actuales.
-   * @param[out] f Fila resultante.
-   * @param[out] c Columna resultante.
-   */
-  void get_pos(int sensor_idx, const Sensores &sensores, int &f, int &c) const;
 
 private:
   // =========================================================================
@@ -274,18 +259,6 @@ private:
   /// Contador de instantes del técnico.
   int instante;
   
-  /// Indica si el técnico está esperando al ingeniero para colaborar
-  bool esperando_ingeniero;
-  
-  /// Coordenadas destino enviadas por el ingeniero
-  int destino_fila;
-  int destino_columna;
-  
-  /// Plan actual de acciones (para niveles con pathFinding)
-  std::list<Action> plan_actual;
-  
-  /// Estado destino actual (para niveles con búsqueda)
-  estadoT estado_destino;
 };
 
 #endif

@@ -106,9 +106,6 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     instante = 0;
-    objetivo_encontrado = false;
-    objetivo_fila = -1;
-    objetivo_columna = -1;
   }
 
   /**
@@ -123,9 +120,6 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     instante = 0;
-    objetivo_encontrado = false;
-    objetivo_fila = -1;
-    objetivo_columna = -1;
   }
 
   ComportamientoIngeniero(const ComportamientoIngeniero &comport)
@@ -282,16 +276,6 @@ protected:
    */
   bool es_camino(unsigned char c) const;
 
-  /**
-   * @brief Traduce un índice del vector de sensores a coordenadas (fila, columna) reales.
-   * Esta función es fundamental para poder indexar correctamente en mTiempo y mapaResultado.
-   * Soporta las 8 orientaciones posibles del agente.
-   * @param sensor_idx Índice en el vector de sensores (0-15).
-   * @param sensores Referencia a los sensores actuales (para obtener posF, posC y rumbo).
-   * @param[out] f Fila resultante.
-   * @param[out] c Columna resultante.
-   */
-  void get_pos(int sensor_idx, const Sensores &sensores, int &f, int &c) const;
 
 private:
   // =========================================================================
@@ -306,19 +290,7 @@ private:
   
   /// Contador global de instantes de la simulación.
   int instante;
-  
-  /// Indica si se ha encontrado un objetivo (para niveles avanzados)
-  bool objetivo_encontrado;
-  
-  /// Coordenadas del objetivo encontrado (si aplica)
-  int objetivo_fila;
-  int objetivo_columna;
-  
-  /// Plan actual de acciones (para niveles con pathFinding)
-  std::list<Action> plan_actual;
-  
-  /// Estado destino actual (para niveles con búsqueda)
-  estadoI estado_destino;
+
 };
 
 #endif

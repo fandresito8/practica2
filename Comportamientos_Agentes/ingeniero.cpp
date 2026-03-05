@@ -85,28 +85,6 @@ bool ComportamientoIngeniero::es_camino(unsigned char c) const {
   return (c == 'C' || c == 'D' || c == 'U');
 }
 
-/**
- * @brief Traduce un índice del vector de sensores (1-3) a coordenadas reales (fila, columna).
- * @param sensor_idx Índice en el vector de sensores (1, 2 o 3).
- * @param sensores Referencia a los sensores actuales.
- * @param[out] f Fila resultante.
- * @param[out] c Columna resultante.
- */
-void ComportamientoIngeniero::get_pos(int sensor_idx, const Sensores &sensores, int &f, int &c) const {
-  estadoI temp;
-  temp.fila = sensores.posF;
-  temp.columna = sensores.posC;
-  temp.zap = false;
-
-  // sensor 1: izquierda-delante, sensor 2: delante, sensor 3: derecha-delante
-  if (sensor_idx == 1) temp.orientacion = (sensores.rumbo + 7) % 8;
-  else if (sensor_idx == 2) temp.orientacion = sensores.rumbo;
-  else if (sensor_idx == 3) temp.orientacion = (sensores.rumbo + 1) % 8;
-
-  estadoI del = Delante(temp);
-  f = del.fila;
-  c = del.columna;
-}
 
 /**
  * @brief Comportamiento reactivo del ingeniero para el Nivel 1.
