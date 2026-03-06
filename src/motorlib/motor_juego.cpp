@@ -499,7 +499,10 @@ bool actuacionIngeniero(unsigned char celdaJ_inicial, unsigned char celdaJ_fin,
     unsigned int f = monitor.get_entidad(0)->getFil();
     unsigned int c = monitor.get_entidad(0)->getCol();
     unsigned char alt = monitor.getMapa()->alturaEnCelda(f, c);
-    if (alt > 1) {
+    unsigned char celda = monitor.getMapa()->getCelda(f, c);
+    if (celda == 'A') {
+      monitor.addMensaje("Ingeniero", "DIG: No aplicable sobre agua");
+    } else if (alt > 1) {
       monitor.getMapa()->setAltura(f, c, alt - 1);
       monitor.get_entidad(0)->getComportamiento()->mapaCotas[f][c] = alt - 1;
       // Añadir el impacto ecológico de la acción DIG
