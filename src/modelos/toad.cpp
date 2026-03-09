@@ -76,5 +76,4 @@ Toad3D::Toad3D(const std::string & filename) : Objeto3D() {
 }
 
 Toad3D::~Toad3D() {
-    for (auto h : hijos) delete h;
 }

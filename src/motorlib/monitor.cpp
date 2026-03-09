@@ -8,6 +8,15 @@
 #include <iomanip>
 #include <sstream>
 
+/**
+ * @brief Cambia la orientación de una entidad a partir de un código numérico.
+ *
+ * Convierte el valor numérico (0-7) en la enumeración @c Orientacion
+ * correspondiente y la asigna a la entidad indicada.
+ *
+ * @param entidad      Índice de la entidad cuya orientación se modifica.
+ * @param orientacion  Código numérico de orientación (0 = norte, 1 = noreste, …, 7 = noroeste).
+ */
 void MonitorJuego::cambiarOrientacion(unsigned char entidad,
                                       unsigned char orientacion) {
   Orientacion aux;
@@ -40,6 +49,15 @@ void MonitorJuego::cambiarOrientacion(unsigned char entidad,
   entidades[entidad]->setOrientacion(aux);
 }
 
+/**
+ * @brief Carga un mapa desde un fichero y lo asigna al monitor.
+ *
+ * Lee el fichero indicado, que contiene las dimensiones del mapa seguidas
+ * de la matriz de terreno (caracteres) y la matriz de alturas (dígitos).
+ * Inicializa la estructura de tuberías e instancia el objeto @c Mapa.
+ *
+ * @param file  Ruta al fichero de mapa (formato texto).
+ */
 void MonitorJuego::setMapa(const char *file) {
   ifstream ifile;
   ifile.open(file, ios::in);
@@ -80,6 +98,14 @@ void MonitorJuego::setMapa(const char *file) {
   mapa = new Mapa(mapAuxTerreno, mapAuxAlturas, &entidades);
 }
 
+/**
+ * @brief Comprueba si se ha solicitado iniciar el juego y lo pone en marcha.
+ *
+ * Devuelve @c true la primera vez que se invoca tras solicitar el inicio,
+ * reiniciando el indicador interno. En llamadas posteriores devuelve @c false.
+ *
+ * @return true si el juego acaba de inicializarse; false en caso contrario.
+ */
 bool MonitorJuego::inicializarJuego() {
   bool aux = empezarJuego;
   if (empezarJuego) {
@@ -89,6 +115,14 @@ bool MonitorJuego::inicializarJuego() {
   return aux;
 }
 
+/**
+ * @brief Genera aleatoriamente una celda válida (ni precipicio ni muro) y
+ *        una orientación.
+ *
+ * @param[out] pos_fila  Fila de la celda generada.
+ * @param[out] pos_col   Columna de la celda generada.
+ * @param[out] ori       Orientación aleatoria (0-7).
+ */
 void MonitorJuego::generate_a_valid_cell(int &pos_fila, int &pos_col,
                                          int &ori) {
   pos_col = -1;
@@ -103,6 +137,16 @@ void MonitorJuego::generate_a_valid_cell(int &pos_fila, int &pos_col,
   ori = aleatorio(7);
 }
 
+/**
+ * @brief Comprueba si una celda es apta como objetivo.
+ *
+ * Una celda es válida como objetivo si no es muro, precipicio y se
+ * encuentra al menos a 3 casillas del borde del mapa.
+ *
+ * @param f  Fila de la celda.
+ * @param c  Columna de la celda.
+ * @return true si la celda es válida como objetivo.
+ */
 bool MonitorJuego::is_a_valid_cell_like_goal(int f, int c) {
   if (f < 3 or f + 3 >= getMapa()->getNFils())
     return false;
@@ -114,6 +158,12 @@ bool MonitorJuego::is_a_valid_cell_like_goal(int f, int c) {
   return true;
 }
 
+/**
+ * @brief Genera un objetivo aleatorio y lo añade a la lista de objetivos.
+ *
+ * Busca una celda aleatoria que no sea precipicio, muro ni bosque
+ * y la inserta al final de la lista @c objetivos.
+ */
 void MonitorJuego::generate_a_objetive() {
   int pos_col = -1, pos_fila = -1;
   char celdaRand = '_';
@@ -130,6 +180,12 @@ void MonitorJuego::generate_a_objetive() {
   objetivos.push_back(punto);
 }
 
+/**
+ * @brief Inserta un objetivo al principio de la lista de objetivos.
+ *
+ * @param fila     Fila del nuevo objetivo.
+ * @param columna  Columna del nuevo objetivo.
+ */
 void MonitorJuego::put_a_new_objetivo_front(int fila, int columna) {
   pair<int, int> punto;
   punto.first = fila;
@@ -137,8 +193,15 @@ void MonitorJuego::put_a_new_objetivo_front(int fila, int columna) {
   objetivos.push_front(punto);
 }
 
-// Pasa de la lista de objetivos al vector de objetivos activos.
-// 'number' establece el número de objetivos que se fijan simultáneamente
+/**
+ * @brief Transfiere objetivos de la cola al vector de objetivos activos.
+ *
+ * Extrae @p number objetivos de la lista @c objetivos, descartando
+ * aquellos que coincidan con la posición actual del ingeniero o del
+ * técnico, y los fija como objetivos activos.
+ *
+ * @param number  Número de objetivos a activar simultáneamente.
+ */
 void MonitorJuego::put_active_objetivos(int number) {
   vector<unsigned int> v;
 
@@ -172,12 +235,28 @@ void MonitorJuego::put_active_objetivos(int number) {
   objetivosActivos = v;
 }
 
+/**
+ * @brief Obtiene las coordenadas del primer objetivo activo.
+ *
+ * @param n          Índice del objetivo (actualmente se ignora y siempre
+ *                   se devuelve el primero).
+ * @param[out] posFila  Fila del objetivo.
+ * @param[out] posCol   Columna del objetivo.
+ */
 void MonitorJuego::get_n_active_objetivo(int n, int &posFila, int &posCol) {
 
   posFila = objetivosActivos[0];
   posCol = objetivosActivos[1];
 }
 
+/**
+ * @brief Establece las coordenadas del primer objetivo activo y las
+ *        asigna al ingeniero.
+ *
+ * @param n        Índice del objetivo (actualmente se ignora).
+ * @param posFila  Nueva fila del objetivo.
+ * @param posCol   Nueva columna del objetivo.
+ */
 void MonitorJuego::set_n_active_objetivo(int n, int posFila, int posCol) {
 
   objetivosActivos[0] = posFila;
@@ -187,19 +266,47 @@ void MonitorJuego::set_n_active_objetivo(int n, int posFila, int posCol) {
     get_entidad(0)->setObjetivos(objetivosActivos);
 }
 
+/**
+ * @brief Indica si hay al menos un objetivo activo.
+ *
+ * @return true si el vector de objetivos activos no está vacío.
+ */
 bool MonitorJuego::there_are_active_objetivo() {
   return (objetivosActivos.size() > 0);
 }
 
+/**
+ * @brief Devuelve el número de objetivos activos.
+ *
+ * Cada objetivo ocupa dos posiciones en el vector (fila, columna),
+ * por lo que el número se calcula como tamaño / 2.
+ *
+ * @return Cantidad de objetivos activos.
+ */
 int MonitorJuego::get_number_active_objetivos() {
   return (objetivosActivos.size() / 2);
 }
 
+/**
+ * @brief Devuelve una copia del vector de objetivos activos.
+ *
+ * @return Vector con las coordenadas de los objetivos activos
+ *         en formato {f0, c0, f1, c1, …}.
+ */
 vector<unsigned int> MonitorJuego::get_active_objetivos() {
   vector<unsigned int> copia = objetivosActivos;
   return copia;
 }
 
+/**
+ * @brief Decrementa el contador de pasos restantes y comprueba las
+ *        condiciones de finalización de la partida.
+ *
+ * Actualiza los marcadores visuales, verifica si alguno de los
+ * agentes ha completado su objetivo o ha agotado la vida/energía,
+ * y gestiona la transición a la pantalla de resultados. En niveles
+ * ≥ 5 también comprueba el impacto ecológico y el tiempo de deliberación.
+ */
 void MonitorJuego::decPasos() {
   updateVisualMarkers();
   if (get_entidad(0)->fin() or get_entidad(1)->fin()) {
@@ -256,6 +363,18 @@ void MonitorJuego::decPasos() {
   }
 }
 
+/**
+ * @brief Comprueba si una entidad puede ver una celda desde su posición
+ *        y orientación actuales.
+ *
+ * La visibilidad se calcula según el campo de visión de 3 casillas
+ * en el cono frontal de la orientación del agente.
+ *
+ * @param num_entidad  Índice de la entidad.
+ * @param fil          Fila de la celda objetivo.
+ * @param col          Columna de la celda objetivo.
+ * @return true si la celda está dentro del campo de visión.
+ */
 bool MonitorJuego::CanHeSeesThisCell(int num_entidad, int fil, int col) {
   bool salida = false;
   int agenteF = get_entidad(num_entidad)->getFil();
@@ -315,6 +434,22 @@ bool MonitorJuego::CanHeSeesThisCell(int num_entidad, int fil, int col) {
   return salida;
 }
 
+/**
+ * @brief Inicializa el estado completo del juego: mapa, entidades, objetivos
+ *        y tuberías.
+ *
+ * Coloca al ingeniero y al técnico en las posiciones indicadas (o aleatorias
+ * si valen −1), crea los comportamientos adecuados al nivel, genera los
+ * objetivos iniciales y, en el nivel 7, añade excursionistas y vándalos.
+ *
+ * @param pos_filaJ  Fila inicial del ingeniero (−1 = aleatoria).
+ * @param pos_colJ   Columna inicial del ingeniero (−1 = aleatoria).
+ * @param brujJ      Orientación inicial del ingeniero (−1 = aleatoria).
+ * @param pos_filaS  Fila inicial del técnico (−1 = aleatoria).
+ * @param pos_colS   Columna inicial del técnico (−1 = aleatoria).
+ * @param brujS      Orientación inicial del técnico (−1 = aleatoria).
+ * @param seed       Semilla utilizada para la generación aleatoria.
+ */
 void MonitorJuego::inicializar(int pos_filaJ, int pos_colJ, int brujJ,
                                int pos_filaS, int pos_colS, int brujS,
                                int seed) {
@@ -486,6 +621,19 @@ void MonitorJuego::inicializar(int pos_filaJ, int pos_colJ, int brujJ,
   }
 }
 
+/**
+ * @brief Recoloca una entidad en el mapa con una posición y orientación
+ *        determinadas.
+ *
+ * Activa la hitbox de la entidad y le retira las zapatillas. Si la celda
+ * de destino es una casilla especial ('X' o 'D'), aplica su efecto
+ * (recarga de batería o obtención de zapatillas).
+ *
+ * @param Entidad  Índice de la entidad.
+ * @param fila     Fila de reaparición.
+ * @param columna  Columna de reaparición.
+ * @param brujula  Orientación de reaparición.
+ */
 void MonitorJuego::ReAparicionesEntidad(int Entidad, int fila, int columna,
                                         Orientacion brujula) {
   get_entidad(Entidad)->setPosicion(fila, columna);
@@ -503,6 +651,12 @@ void MonitorJuego::ReAparicionesEntidad(int Entidad, int fila, int columna,
   }
 }
 
+/**
+ * @brief Imprime por consola el estado actual del monitor de juego.
+ *
+ * Muestra posición y orientación de todas las entidades, así como
+ * las coordenadas de los objetivos del ingeniero. Útil para depuración.
+ */
 void MonitorJuego::PintaEstadoMonitor() {
   cout << "*********************************************\n";
   cout << "Pos Fil: " << get_entidad(0)->getFil() << endl;
@@ -521,6 +675,16 @@ void MonitorJuego::PintaEstadoMonitor() {
   cout << "*********************************************\n";
 }
 
+/**
+ * @brief Calcula el porcentaje de coincidencia entre el mapa real y
+ *        el mapa construido por los agentes.
+ *
+ * Combina los mapas resultado del ingeniero y del técnico y compara
+ * cada casilla con el mapa real. Las casillas marcadas como '?' se
+ * consideran neutras; las incorrectas restan.
+ *
+ * @return Porcentaje de aciertos sobre el total de casillas.
+ */
 double MonitorJuego::CoincidenciaConElMapa() {
   int aciertos = 0, totalCasillas = 0;
   vector<vector<unsigned char>> resultado = get_entidad(0)->getMapaResultado();
@@ -541,6 +705,15 @@ double MonitorJuego::CoincidenciaConElMapa() {
   return (aciertos * 100.0 / totalCasillas);
 }
 
+/**
+ * @brief Calcula el porcentaje de coincidencia solo para casillas de
+ *        camino ('C') y sendero ('S').
+ *
+ * Análoga a @ref CoincidenciaConElMapa pero restringida a las casillas
+ * transitables principales.
+ *
+ * @return Porcentaje de aciertos sobre el total de casillas C/S.
+ */
 double MonitorJuego::CoincidenciaConElMapaCaminosYSenderos() {
   int aciertos = 0, totalCasillas = 0;
   vector<vector<unsigned char>> resultado = get_entidad(0)->getMapaResultado();
@@ -564,6 +737,12 @@ double MonitorJuego::CoincidenciaConElMapaCaminosYSenderos() {
   return (aciertos * 100.0 / totalCasillas);
 }
 
+/**
+ * @brief Convierte una acción en su representación textual.
+ *
+ * @param accion  Acción a convertir.
+ * @return Cadena con el nombre de la acción ("WALK", "JUMP", etc.).
+ */
 string MonitorJuego::strAccion(Action accion) {
   string out = "";
 
@@ -603,6 +782,12 @@ string MonitorJuego::strAccion(Action accion) {
   return out;
 }
 
+/**
+ * @brief Convierte una orientación en su nombre en español.
+ *
+ * @param x  Orientación a convertir.
+ * @return Cadena descriptiva ("norte", "sureste", etc.).
+ */
 string paraDonde(const Orientacion &x) {
   string aux;
   switch (x) {
@@ -634,24 +819,55 @@ string paraDonde(const Orientacion &x) {
   return aux;
 }
 
+/**
+ * @brief Formatea un número entero con justificación a la derecha.
+ *
+ * @param numero   Valor a formatear.
+ * @param longitud Ancho total del campo.
+ * @return Cadena con el número justificado.
+ */
 std::string justificarDerechaNumero(int numero, int longitud) {
   std::stringstream ss;
   ss << std::setw(longitud) << std::right << numero;
   return ss.str();
 }
 
+/**
+ * @brief Formatea una cadena de texto con justificación a la derecha.
+ *
+ * @param texto    Texto a formatear.
+ * @param longitud Ancho total del campo.
+ * @return Cadena justificada.
+ */
 std::string justificarDerechaCadena(std::string texto, int longitud) {
   std::stringstream ss;
   ss << std::setw(longitud) << std::right << texto;
   return ss.str();
 }
 
+/**
+ * @brief Formatea un número real con justificación a la derecha.
+ *
+ * @param numero  Valor a formatear.
+ * @param p       Ancho total del campo.
+ * @return Cadena con el número formateado.
+ */
 std::string formatearReal(double numero, int p) {
   std::stringstream ss;
   ss << std::right << std::setw(p) << numero;
   return ss.str();
 }
 
+/**
+ * @brief Genera una representación textual del estado actual de la
+ *        simulación.
+ *
+ * Incluye tiempo restante, energía, posición, orientación, última
+ * acción, tiempo de deliberación, estado de zapatillas, misiones,
+ * puntuación y los vectores sensoriales de ambos agentes.
+ *
+ * @return Cadena multilínea con el resumen del estado.
+ */
 string MonitorJuego::toString() {
   string aux, aux1, saux;
 
@@ -756,6 +972,18 @@ string MonitorJuego::toString() {
   return str;
 }
 
+/**
+ * @brief Aplica los efectos de casillas especiales en las posiciones
+ *        iniciales de los agentes.
+ *
+ * Si el ingeniero o el técnico comienzan en una casilla de zapatillas
+ * ('D'), se les otorgan automáticamente.
+ *
+ * @param f       Fila inicial del ingeniero.
+ * @param c       Columna inicial del ingeniero.
+ * @param fcolab  Fila inicial del técnico.
+ * @param ccolab  Columna inicial del técnico.
+ */
 void MonitorJuego::init_casillas_especiales(unsigned int f, unsigned int c,
                                             unsigned int fcolab,
                                             unsigned int ccolab) {
@@ -771,6 +999,10 @@ void MonitorJuego::init_casillas_especiales(unsigned int f, unsigned int c,
   }
 }
 
+/**
+ * @brief Vacía tanto la lista de objetivos pendientes como el vector
+ *        de objetivos activos.
+ */
 void MonitorJuego::reset_objetivos() {
   if (!objetivos.empty()) {
     objetivos.clear();
@@ -780,6 +1012,17 @@ void MonitorJuego::reset_objetivos() {
   }
 }
 
+/**
+ * @brief Comprueba si existe una conexión de tuberías desde la casilla
+ *        de inicio hasta una casilla terminal ('U').
+ *
+ * Realiza una búsqueda en anchura (BFS) siguiendo las conexiones
+ * codificadas en @c mapaTuberias (bits: 1 = N, 4 = E, 16 = S, 64 = O).
+ *
+ * @param startF  Fila de la casilla de inicio.
+ * @param startC  Columna de la casilla de inicio.
+ * @return true si se alcanza una casilla 'U' desde la de inicio.
+ */
 bool MonitorJuego::checkPipeConnection(int startF, int startC) {
   if (startF < 0 || startF >= (int)mapa->getNFils() || startC < 0 ||
       startC >= (int)mapa->getNCols())
@@ -836,6 +1079,18 @@ bool MonitorJuego::checkPipeConnection(int startF, int startC) {
   return false;
 }
 
+/**
+ * @brief Valida el plan de canalización propuesto por el ingeniero
+ *        en el nivel 4.
+ *
+ * Comprueba que el plan no esté vacío, comience en la casilla objetivo
+ * (BelPos), que cada paso sea adyacente al anterior, que las alturas
+ * sean consistentes (misma altura o descenso de 1) y que el plan
+ * termine en una casilla de tipo 'U'.
+ *
+ * @return true si el plan es correcto; false con mensaje de error
+ *         si hay alguna violación.
+ */
 bool MonitorJuego::checkLevel4() {
   Entidad *eng = entidades[0];
   ListaCasillasPlan plan = eng->getCanalizacionPlan();
@@ -899,6 +1154,15 @@ bool MonitorJuego::checkLevel4() {
 
   return true;
 }
+/**
+ * @brief Elimina los marcadores visuales de acción fallida en una celda.
+ *
+ * Borra de la lista de marcadores visuales aquellos de tipo 0
+ * (cruz roja de fallo) que coincidan con la posición dada.
+ *
+ * @param f  Fila de la celda.
+ * @param c  Columna de la celda.
+ */
 void MonitorJuego::clearFailedAction(int f, int c) {
   visualMarkers.erase(std::remove_if(visualMarkers.begin(), visualMarkers.end(),
                                      [f, c](const VisualMarker &vm) {
@@ -908,6 +1172,17 @@ void MonitorJuego::clearFailedAction(int f, int c) {
                       visualMarkers.end());
 }
 
+/**
+ * @brief Devuelve el impacto ecológico de una acción sobre un tipo
+ *        de celda.
+ *
+ * Los costes varían según la acción (INSTALL, RAISE, DIG) y el tipo
+ * de terreno. Acciones no contempladas devuelven 0.
+ *
+ * @param accion  Acción ejecutada.
+ * @param celda   Tipo de celda sobre la que se ejecuta.
+ * @return Valor del impacto ecológico.
+ */
 int MonitorJuego::getCosteEco(Action accion, unsigned char celda) {
   switch (accion) {
   case INSTALL:

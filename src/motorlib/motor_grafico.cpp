@@ -30,7 +30,7 @@ GLUI_Spinner *setup_inst, *setup_ener, *setup_eco;
 // GLUI_Spinner *editPosColumna, *editPosFila;
 
 int nPasos = 10, tRetardo = 1, MMmode = 3, MMmode2 = 0, MMmode3 = 0,
-    MMmode4 = 0, PosColumna = 1, PosFila = 1, tMap = 100, colisiones = 0;
+    MMmode4 = 0, PosColumna = 1, PosFila = 1, tMap = 100;
 int camMode = 0; // 0: First Person, 1: Zenithal
 int Check1stPerZenital = 1, CheckTotalTopology = 1, CheckGridFP = 1;
 int objtiveSelected = 0;
@@ -41,6 +41,12 @@ int ObjInstSim = 3000, ObjEnergia = 3000, ObjUmbEco = 1000;
 
 void irAlJuego(int valor);
 
+/**
+ * @brief Divide una cadena de texto en líneas usando '\n' como separador.
+ *
+ * @param str   Cadena de entrada con posibles saltos de línea.
+ * @param strs  Vector de salida donde se almacenan las líneas extraídas.
+ */
 void Descomponer(string str, vector<string> &strs) {
   while (str.length() != 0) {
     strs.push_back(str.substr(0, str.find('\n')));
@@ -48,6 +54,17 @@ void Descomponer(string str, vector<string> &strs) {
   }
 }
 
+/**
+ * @brief Renderiza una cadena de texto 2D en la ventana OpenGL activa.
+ *
+ * @param x     Coordenada X (en píxeles) de la posición inicial del texto.
+ * @param y     Coordenada Y (en píxeles) de la posición inicial del texto.
+ * @param text  Texto a dibujar (cadena terminada en nulo).
+ * @param font  Fuente bitmap de GLUT (p.ej. GLUT_BITMAP_HELVETICA_12).
+ * @param r     Componente roja del color [0,1].
+ * @param g     Componente verde del color [0,1].
+ * @param b     Componente azul del color [0,1].
+ */
 void renderText(float x, float y, const char *text, void *font, float r,
                 float g, float b) {
   glDisable(GL_LIGHTING);
@@ -59,6 +76,18 @@ void renderText(float x, float y, const char *text, void *font, float r,
   }
 }
 
+/**
+ * @brief Dibuja un rectángulo relleno con color y transparencia en 2D.
+ *
+ * @param x  Coordenada X de la esquina superior-izquierda.
+ * @param y  Coordenada Y de la esquina superior-izquierda.
+ * @param w  Anchura del rectángulo (píxeles).
+ * @param h  Altura del rectángulo (píxeles).
+ * @param r  Componente roja [0,1].
+ * @param g  Componente verde [0,1].
+ * @param b  Componente azul [0,1].
+ * @param a  Alpha (transparencia) [0,1]. 0 = totalmente transparente.
+ */
 void renderRect(float x, float y, float w, float h, float r, float g, float b,
                 float a) {
   glDisable(GL_LIGHTING);
@@ -74,6 +103,18 @@ void renderRect(float x, float y, float w, float h, float r, float g, float b,
   glDisable(GL_BLEND);
 }
 
+/**
+ * @brief Dibuja una barra de progreso horizontal con fondo oscuro y borde gris.
+ *
+ * @param x        Coordenada X de la esquina superior-izquierda.
+ * @param y        Coordenada Y de la esquina superior-izquierda.
+ * @param w        Anchura total de la barra (píxeles).
+ * @param h        Altura de la barra (píxeles).
+ * @param percent  Fracción rellena [0.0, 1.0].
+ * @param r        Componente roja del color de relleno [0,1].
+ * @param g        Componente verde del color de relleno [0,1].
+ * @param b        Componente azul del color de relleno [0,1].
+ */
 void renderBar(float x, float y, float w, float h, float percent, float r,
                float g, float b) {
   renderRect(x, y, w, h, 0.1f, 0.1f, 0.1f, 0.6f);  // Background
@@ -130,6 +171,16 @@ void renderBar(float x, float y, float w, float h, float percent, float r,
 // el evento manda a la funcion: nuevo ancho, nuevo alto
 //***************************************************************************
 
+/**
+ * @brief Callback de redimensionado de la ventana principal.
+ *
+ * Redistribuye automáticamente las subventanas (mapa 2D, zona de mensajes,
+ * vista 3D, panel de información de agentes y panel de controles) cada vez
+ * que el usuario cambia el tamaño de la ventana X.
+ *
+ * @param ancho  Nuevo ancho de la ventana en píxeles.
+ * @param alto   Nuevo alto de la ventana en píxeles.
+ */
 void reshape(int ancho, int alto) {
   if ((ancho > 1) and (alto > 1)) {
     // parametros de la ventana principal
@@ -188,6 +239,12 @@ void reshape(int ancho, int alto) {
   }
 }
 
+/**
+ * @brief Configura el viewport 3D (perspectiva) para la subventana activa.
+ *
+ * Establece una proyección frustum estándar y carga la matriz de modelview
+ * identidad. Se invoca antes de renderizar contenido 3D.
+ */
 void ResetViewport() {
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
@@ -196,6 +253,13 @@ void ResetViewport() {
   glLoadIdentity();
 }
 
+/**
+ * @brief Configura el viewport 2D (ortográfico) para la subventana activa.
+ *
+ * Establece una proyección ortográfica con coordenadas en píxeles y
+ * desactiva iluminación, profundidad y niebla. Se invoca antes de
+ * renderizar contenido 2D (HUD, minimapa, panel de información).
+ */
 void ResetViewport2D() {
   int w = glutGet(GLUT_WINDOW_WIDTH);
   int h = glutGet(GLUT_WINDOW_HEIGHT);
@@ -209,6 +273,13 @@ void ResetViewport2D() {
   glDisable(GL_FOG);
 }
 
+/**
+ * @brief Callback de refresco de la ventana raíz principal.
+ *
+ * Limpia el buffer de color con fondo gris claro. La ventana raíz actúa
+ * únicamente como contenedor de las subventanas; su propio contenido
+ * visible es mínimo.
+ */
 void display_ventPrincipal(void) {
   // Background Color
   glClearColor(0.8, 0.8, 0.8, 0.0);
@@ -216,6 +287,14 @@ void display_ventPrincipal(void) {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de refresco de la subventana principal (vista 2D del mapa).
+ *
+ * Dibuja el mapa Belkan en la subventana de mayor tamaño. Soporta dos modos
+ * de cámara: primera persona (@c camMode==0) y cenital (@c camMode==1).
+ * También renderiza el cielo con nubes animadas y actualiza el grid de
+ * primera persona según el flag @c CheckGridFP.
+ */
 void display_vistPrincipal() {
   ResetViewport();
 
@@ -399,6 +478,12 @@ void display_vistPrincipal() {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de refresco de la subventana de minimapa (vista 3D lateral).
+ *
+ * Renderiza el minimapa 2D del mundo Belkan con los objetivos activos
+ * y la topología según los modos @c MMmode y @c MMmode4.
+ */
 void display_vistMiniMapa() {
   ResetViewport();
 
@@ -418,6 +503,14 @@ void display_vistMiniMapa() {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de refresco del panel de información de agentes.
+ *
+ * Dibuja en modo 2D las barras de batería, posición, orientación, última
+ * acción y vectores de visión (terreno, superficies, alturas) del Ingeniero
+ * y del Técnico. También muestra el tiempo restante, la puntuación, los
+ * objetivos de nivel 7 y el impacto ecológico acumulado.
+ */
 void display_vistInfoAgentes() {
   ResetViewport2D();
   glClearColor(0.12, 0.12, 0.12, 1.0);
@@ -585,8 +678,21 @@ void display_vistInfoAgentes() {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de refresco del panel de información general.
+ *
+ * Delega en @ref display_vistInfoAgentes. Mantenido como punto de extensión
+ * para añadir información adicional en el futuro.
+ */
 void display_vistInfo() { display_vistInfoAgentes(); }
 
+/**
+ * @brief Callback de refresco del panel de mensajes del sistema.
+ *
+ * Renderiza las últimas líneas del log de mensajes del monitor con
+ * soporte de scroll. Muestra un máximo de 3 líneas visibles a la vez
+ * y dibuja una barra de desplazamiento cuando hay más contenido.
+ */
 void display_vistMensajes() {
   ResetViewport2D();
   glClearColor(0.08, 0.08, 0.1, 1.0);
@@ -629,6 +735,17 @@ void display_vistMensajes() {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de ratón para la subventana de mensajes.
+ *
+ * Gestiona el scroll de la lista de mensajes mediante la rueda del ratón:
+ * botón 3 (rueda arriba) sube un mensaje, botón 4 (rueda abajo) baja uno.
+ *
+ * @param button  Botón del ratón pulsado (GLUT_LEFT_BUTTON, 3, 4, …).
+ * @param state   Estado del botón (GLUT_DOWN / GLUT_UP).
+ * @param x       Coordenada X del cursor al pulsar.
+ * @param y       Coordenada Y del cursor al pulsar.
+ */
 void mouseClickMensajes(int button, int state, int x, int y) {
   if (state == GLUT_DOWN) {
     int scroll = monitor.getScrollMensajes();
@@ -644,6 +761,12 @@ void mouseClickMensajes(int button, int state, int x, int y) {
   }
 }
 
+/**
+ * @brief Callback de refresco del panel de interfaz de usuario (controles GLUI).
+ *
+ * Actualiza el viewport y llama a GLUI para que gestione sus propios controles.
+ * El contenido textual se ha migrado a la subventana de información de agentes.
+ */
 void display_vistIU() {
   ResetViewport();
   GLUI_Master.auto_set_viewport();
@@ -660,6 +783,16 @@ void display_vistIU() {
   glutSwapBuffers();
 }
 
+/**
+ * @brief Callback de temporizador GLUT: fuerza el redibujado de todas las subventanas.
+ *
+ * Marca como sucias todas las subventanas (mapa, minimapa, IU, info, mensajes)
+ * para que GLUT las repinte en el siguiente ciclo. También sincroniza el
+ * objetivo activo con los controles de la IU y llama a @ref irAlJuego para
+ * avanzar un paso de simulación.
+ *
+ * @param valor  Parámetro de valor del temporizador (no utilizado).
+ */
 void update(int valor) {
   glutSetWindow(vistaPrincipal);
   glutPostRedisplay();
@@ -704,8 +837,18 @@ void update(int valor) {
   irAlJuego(0);
 }
 
+/**
+ * @brief Avanza la simulación un paso desde la interfaz gráfica.
+ *
+ * Invoca @ref lanzar_motor_juego. Si la simulación ha terminado, desactiva
+ * los controles de ejecución (Paso, Ejecución, Ejecutar) y activa el
+ * botón de selección de mapa. Finalmente programa el siguiente ciclo de
+ * actualización mediante @c glutTimerFunc.
+ *
+ * @param valor  Parámetro del temporizador (no utilizado).
+ */
 void irAlJuego(int valor) {
-  if (lanzar_motor_juego(colisiones, -1)) {
+  if (lanzar_motor_juego(-1)) {
     botonElegirMapa->enable();
     botonPaso->disable();
     botonEjecucion->disable();
@@ -715,12 +858,19 @@ void irAlJuego(int valor) {
     editTextPasos->disable();
     editTextRetardo->disable();
     botonSalir->enable();
-    colisiones = 0;
   }
   // glutKeyboardFunc(keyboard);
   glutTimerFunc(1, update, 0);
 }
 
+/**
+ * @brief Callback del botón "Cancelar" en el diálogo de selección de mapa.
+ *
+ * Cierra el panel modal de selección de mapa y reactiva los controles
+ * principales (elegir mapa, salir).
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonCancelarNuevoMapaCB(int valor) {
   panelSelecMapa->close();
 
@@ -728,6 +878,15 @@ void botonCancelarNuevoMapaCB(int valor) {
   botonSalir->enable();
 }
 
+/**
+ * @brief Callback del botón "Aceptar" en el diálogo de selección de mapa.
+ *
+ * Carga el mapa seleccionado en el listbox, valida las posiciones iniciales
+ * del Ingeniero y el Técnico, configura el objetivo activo y arranca el juego
+ * al nivel seleccionado. Reactiva los controles de simulación y cierra el panel.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonAceptarNuevoMapaCB(int valor) {
 
   botonElegirMapa->enable();
@@ -828,6 +987,13 @@ void botonAceptarNuevoMapaCB(int valor) {
   panelSelecMapa->close();
 }
 
+/**
+ * @brief Lista los ficheros de un directorio que coincidan con una extensión.
+ *
+ * @param name       Ruta del directorio a explorar.
+ * @param extension  Cadena de extensión a filtrar (p.ej. ".map").
+ * @return Vector de nombres de fichero ordenado alfabéticamente.
+ */
 vector<string> getFilesList(string name, string extension) {
   vector<string> v;
 
@@ -848,6 +1014,15 @@ vector<string> getFilesList(string name, string extension) {
   return v;
 }
 
+/**
+ * @brief Callback del botón "Ok" del diálogo de configuración avanzada.
+ *
+ * Aplica los valores de semilla, posiciones iniciales de ambos agentes,
+ * casilla objetivo, instantes, energía y umbral ecológico introducidos en
+ * los spinners de configuración y lanza el juego con esos parámetros.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonConfigurarSimOK(int valor) {
   botonElegirMapa->enable();
   // listboxMap->disable();
@@ -887,12 +1062,29 @@ void botonConfigurarSimOK(int valor) {
       static_cast<Orientacion>(setup61->get_int_val()));
 }
 
+/**
+ * @brief Callback del botón "Cancelar" del diálogo de configuración avanzada.
+ *
+ * Aplica la configuración actual (llama a @ref botonConfigurarSimOK),
+ * resetea el modo de minimapa y cierra el panel de configuración.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonConfigurarSimCANCEL(int valor) {
   botonConfigurarSimOK(1);
   MMmode = 0;
   panelSelecMapaConfig->close();
 }
 
+/**
+ * @brief Callback del botón "Ok y Configurar" en el diálogo de selección de mapa.
+ *
+ * Carga el mapa seleccionado, genera posiciones válidas para ambos agentes,
+ * arranca el juego y abre el panel avanzado de configuración de los parámetros
+ * de simulación (semilla, posiciones, objetivo, instantes, energía, umbral).
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonConfigurarNuevoMapaCB(int valor) {
   /* LLamada para cargar el mapa */
 
@@ -1047,6 +1239,15 @@ void botonConfigurarNuevoMapaCB(int valor) {
   panelSelecMapa->close();
 }
 
+/**
+ * @brief Callback del botón "Elegir Mapa" de la barra de controles principal.
+ *
+ * Abre el panel modal de selección de mapa y nivel. Desactiva temporalmente
+ * los controles de simulación (Paso, Ejecución, Ejecutar, Salir) y pobla
+ * el listbox con los ficheros @c .map disponibles en la carpeta @c mapas/.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonElegirMapaCB(int valor) {
 
   panelSelecMapa = GLUI_Master.create_glui("Elige mapa y nivel");
@@ -1079,7 +1280,7 @@ void botonElegirMapaCB(int valor) {
   GLUI_Panel *obj_panel = panelSelecMapa->add_panel("Nivel");
   group = panelSelecMapa->add_radiogroup_to_panel(obj_panel, &ultimonivel);
   panelSelecMapa->add_radiobutton_to_group(
-      group, "Nivel 0: [R] Restreadores de Alcantarillas   ");
+      group, "Nivel 0: [R] Rastreadores de Alcantarillas   ");
   panelSelecMapa->add_radiobutton_to_group(
       group, "Nivel 1: [R] De Reconocimiento por la Naturaleza  ");
   panelSelecMapa->add_radiobutton_to_group(
@@ -1098,16 +1299,56 @@ void botonElegirMapaCB(int valor) {
   panelSelecMapa->add_button("Salir", 3, botonCancelarNuevoMapaCB);
 }
 
+/**
+ * @brief Callback del botón "Paso" (ejecución paso a paso).
+ *
+ * Fija el número de pasos pendientes a 1 para que el motor ejecute
+ * únicamente un instante de simulación en el siguiente ciclo.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonPasoCB(int valor) { monitor.setPasos(1); }
 
+/**
+ * @brief Callback del botón "Ejecución" (ejecutar hasta el final).
+ *
+ * Fija el número de pasos pendientes al total de instantes de la simulación,
+ * de forma que el motor ejecuta todos los ciclos restantes sin pausas.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonEjecucionCB(int valor) {
   monitor.setPasos(monitor.getInstantesInicial());
 }
 
+/**
+ * @brief Callback del botón "Ejecutar" (ejecución de N pasos).
+ *
+ * Fija el número de pasos pendientes a @c nPasos, valor configurable
+ * por el usuario en el campo de texto de la IU.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonEjecutarCB(int valor) { monitor.setPasos(nPasos); }
 
+/**
+ * @brief Callback del spinner de retardo entre pasos.
+ *
+ * Actualiza el retardo del motor con el valor actual del control @c tRetardo.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void setRetardo(int valor) { monitor.setRetardo(tRetardo); }
 
+/**
+ * @brief Callback del spinner de columna del objetivo.
+ *
+ * Actualiza el objetivo activo (posición 0) del monitor con la fila
+ * y columna introducidas (@c PosFila, @c PosColumna), y refresca las
+ * variables de seguimiento @c ObjFil1 y @c ObjCol1.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void setPosColumna(int valor) {
   // Cambiando la posición de la columna
   monitor.set_n_active_objetivo(0, PosFila, PosColumna);
@@ -1116,6 +1357,14 @@ void setPosColumna(int valor) {
   ObjFil2 = 0;
 }
 
+/**
+ * @brief Callback del spinner de fila del objetivo.
+ *
+ * Análogo a @ref setPosColumna. Actualiza el objetivo activo del monitor
+ * con la nueva fila seleccionada.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void setPosFila(int valor) {
   // Cambiando la posición de la fila
   monitor.set_n_active_objetivo(0, PosFila, PosColumna);
@@ -1125,6 +1374,15 @@ void setPosFila(int valor) {
 }
 
 
+/**
+ * @brief Callback del checkbox de modo de cámara (Primera persona / Cenital).
+ *
+ * Cambia @c camMode entre 0 (primera persona) y 1 (cenital) según el
+ * valor del checkbox @c Check1stPerZenital. Habilita o deshabilita el
+ * spinner de zoom en función del modo seleccionado.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void cb1stPerZenital(int valor) {
   if (Check1stPerZenital)
     camMode = 0;
@@ -1139,6 +1397,14 @@ void cb1stPerZenital(int valor) {
   }
 }
 
+/**
+ * @brief Callback del checkbox de topología total del mapa.
+ *
+ * Alterna @c MMmode4 entre 0 (topología parcial, solo lo descubierto)
+ * y 1 (topología completa del mapa visible).
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void cbTotalTopology(int valor) {
   if (CheckTotalTopology)
     MMmode4 = 0;
@@ -1146,11 +1412,28 @@ void cbTotalTopology(int valor) {
     MMmode4 = 1;
 }
 
+/**
+ * @brief Callback del botón "Salir".
+ *
+ * Cierra correctamente la sesión Belkan (@ref MonitorJuego::cerrarBelkan)
+ * y termina el proceso con código de éxito.
+ *
+ * @param valor  Parámetro de valor de GLUI (no utilizado).
+ */
 void botonSalirCB(int valor) {
   monitor.cerrarBelkan();
   exit(0);
 }
 
+/**
+ * @brief Devuelve la orientación siguiente en sentido horario.
+ *
+ * Recorre el ciclo: norte → noreste → este → sureste → sur → suroeste
+ * → oeste → noroeste → norte.
+ *
+ * @param x  Orientación actual.
+ * @return   Orientación inmediatamente siguiente en sentido horario.
+ */
 Orientacion Next(Orientacion x) {
   switch (x) {
   case norte:
@@ -1177,9 +1460,20 @@ Orientacion Next(Orientacion x) {
   case noroeste:
     return norte;
     break;
+  default:
+    return norte; // no debería alcanzarse; el enum cubre los 8 casos
   }
 }
 
+/**
+ * @brief Devuelve la orientación anterior en sentido antihorario.
+ *
+ * Recorre el ciclo inverso: norte → noroeste → oeste → suroeste → sur
+ * → sureste → este → noreste → norte.
+ *
+ * @param x  Orientación actual.
+ * @return   Orientación inmediatamente anterior en sentido antihorario.
+ */
 Orientacion Previous(Orientacion x) {
   switch (x) {
   case norte:
@@ -1206,9 +1500,27 @@ Orientacion Previous(Orientacion x) {
   case noreste:
     return norte;
     break;
+  default:
+    return norte; // no debería alcanzarse; el enum cubre los 8 casos
   }
 }
 
+/**
+ * @brief Callback de clic de ratón en la subventana del mapa 2D.
+ *
+ * - **Botón izquierdo**: establece la casilla clicada como nuevo objetivo
+ *   activo y sincroniza los controles de fila/columna de la IU.
+ * - **Botón derecho**: teletransporta al Ingeniero a la casilla clicada.
+ * - **Botón central**: gira la orientación del Ingeniero 45º en sentido horario.
+ *
+ * Las coordenadas del clic se escalan del espacio de píxeles al espacio
+ * del mapa usando el factor @c tMap.
+ *
+ * @param button  Botón del ratón (GLUT_LEFT_BUTTON, GLUT_RIGHT_BUTTON, GLUT_MIDDLE_BUTTON).
+ * @param state   Estado del botón (GLUT_DOWN / GLUT_UP).
+ * @param x       Coordenada X del cursor en píxeles.
+ * @param y       Coordenada Y del cursor en píxeles.
+ */
 void mouseClick(int button, int state, int x, int y) {
   int tx, ty, tw, th;
   GLUI_Master.get_viewport_area(&tx, &ty, &tw, &th);
@@ -1237,6 +1549,21 @@ void mouseClick(int button, int state, int x, int y) {
   }
 }
 
+/**
+ * @brief Inicializa y lanza la interfaz gráfica del motor Belkan.
+ *
+ * Crea todas las subventanas GLUT (mapa principal, minimapa, información de
+ * agentes, mensajes e interfaz de controles GLUI), registra todos los
+ * callbacks de refresco, ratón y redimensionado, construye los paneles de
+ * la IU y arranca el bucle principal de GLUT (@c glutMainLoop).
+ *
+ * También configura las entidades del monitor (Ingeniero, Técnico y NPCs),
+ * inicializa el mapa por defecto si se proporcionó por línea de comandos,
+ * y registra el primer temporizador de actualización.
+ *
+ * @param argc  Número de argumentos de la línea de comandos.
+ * @param argv  Vector de cadenas con los argumentos de la línea de comandos.
+ */
 void lanzar_motor_grafico(int argc, char **argv) {
   glutInit(&argc, argv);
   // Mode Setting
@@ -1249,7 +1576,7 @@ void lanzar_motor_grafico(int argc, char **argv) {
 
   // Main Window
   ventanaPrincipal = glutCreateWindow(
-      "Practica 2: Agentes Deliberativos/Reactivos. Curso 24/25");
+      "Practica 2: Agentes Deliberativos/Reactivos. Curso 25/26");
   // Main Window callback function
   glutReshapeFunc(reshape);
   glutDisplayFunc(display_ventPrincipal);
@@ -1399,6 +1726,18 @@ void lanzar_motor_grafico(int argc, char **argv) {
   glutMainLoop();
 }
 
+/**
+ * @brief Inicializa y lanza la interfaz gráfica en modo en línea (con parámetros).
+ *
+ * Equivalente a @ref lanzar_motor_grafico pero recibe todos los parámetros
+ * de la simulación ya parseados en la estructura @ref EnLinea. Carga el mapa,
+ * posiciona a los agentes, fija el nivel, el objetivo, los límites de
+ * instantes, energía e impacto ecológico, y arranca la IU gráfica completa.
+ *
+ * @param argc       Número de argumentos de la línea de comandos.
+ * @param argv       Vector de cadenas con los argumentos.
+ * @param argumentos Estructura @ref EnLinea con la configuración ya parseada.
+ */
 void lanzar_motor_grafico_verOnline(int argc, char **argv,
                                     EnLinea &argumentos) {
 
@@ -1445,7 +1784,7 @@ void lanzar_motor_grafico_verOnline(int argc, char **argv,
   // Main Window
   ventanaPrincipal =
       glutCreateWindow("Practica 2: Agentes Deliberativos/Reactivos. Curso "
-                       "24/25. Version BAJO PARAMETROS");
+                       "25/26. Version BAJO PARAMETROS");
   // Main Window callback function
   glutReshapeFunc(reshape);
   glutDisplayFunc(display_ventPrincipal);

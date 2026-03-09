@@ -1,5 +1,13 @@
 #include "motorlib/entidad.hpp"
 
+/**
+ * @brief Reinicia el estado de la entidad tras una muerte o colisión grave.
+ *
+ * Si la entidad es un jugador o un técnico, se reactiva inmediatamente
+ * (desactivado = 0). En otro caso se le asigna un tiempo aleatorio de
+ * inactividad. Se borran los indicadores de choque y de fin, y se
+ * contabiliza la muerte si la vida no era cero.
+ */
 void Entidad::resetEntidad() {
   hitbox = false;
   if (tipo == jugador or subtipo == tecnico) {
@@ -23,6 +31,18 @@ void Entidad::resetEntidad() {
   gotoC = -1;
 }
 
+/**
+ * @brief Comprueba si una casilla dada coincide con algún objetivo no alcanzado.
+ *
+ * Recorre la lista de destinos de la entidad y devuelve la posición del
+ * objetivo que coincide con las coordenadas indicadas, siempre que
+ * dicho objetivo no haya sido ya alcanzado.
+ *
+ * @param paramF  Fila de la casilla a comprobar.
+ * @param paramC  Columna de la casilla a comprobar.
+ * @return Índice del objetivo coincidente, o -1 si no se encuentra
+ *         o ya ha sido alcanzado.
+ */
 int Entidad::isMemberObjetivo(unsigned int paramF, unsigned int paramC) {
   int pos = -1;
   for (int i = 0; i < num_destinos and pos == -1; i++) {
@@ -36,6 +56,12 @@ int Entidad::isMemberObjetivo(unsigned int paramF, unsigned int paramC) {
   return pos;
 }
 
+/**
+ * @brief Indica si todos los objetivos de la entidad han sido alcanzados.
+ *
+ * @return true  si cada uno de los destinos está marcado como alcanzado.
+ * @return false si queda al menos un destino sin alcanzar.
+ */
 bool Entidad::allObjetivosAlcanzados() {
   bool conseguido = true;
   for (int i = 0; i < num_destinos and conseguido; i++) {
@@ -44,6 +70,15 @@ bool Entidad::allObjetivosAlcanzados() {
   return conseguido;
 }
 
+/**
+ * @brief Indica si se han alcanzado todos los objetivos menos uno.
+ *
+ * Útil para comprobar si la entidad está a punto de completar su misión
+ * (le falta alcanzar un único destino).
+ *
+ * @return true  si exactamente (num_destinos − 1) objetivos están alcanzados.
+ * @return false en caso contrario.
+ */
 bool Entidad::allLessOneObjetivosAlcanzados() {
   int num = 0;
   for (int i = 0; i < num_destinos; i++)
@@ -53,6 +88,13 @@ bool Entidad::allLessOneObjetivosAlcanzados() {
   return (num == num_destinos - 1);
 }
 
+/**
+ * @brief Marca como alcanzado el objetivo correspondiente a la posición
+ *        actual de la entidad.
+ *
+ * Consulta si la posición actual (f, c) coincide con algún objetivo
+ * pendiente y, en caso afirmativo, lo marca como alcanzado.
+ */
 void Entidad::actualizarAlcanzados() {
   int pos = isMemberObjetivo(f, c);
   if (pos != -1 and !alcanzados[pos]) {
@@ -60,12 +102,28 @@ void Entidad::actualizarAlcanzados() {
   }
 }
 
+/**
+ * @brief Reinicia todos los objetivos a estado no alcanzado.
+ *
+ * Se utiliza, por ejemplo, al asignar un nuevo conjunto de objetivos
+ * en el nivel 7.
+ */
 void Entidad::anularAlcanzados() {
   for (int i = 0; i < num_destinos; i++) {
     alcanzados[i] = false;
   }
 }
 
+/**
+ * @brief Establece la lista de objetivos (destinos) de la entidad.
+ *
+ * Recibe un vector donde cada par consecutivo de elementos representa
+ * las coordenadas (fila, columna) de un destino. Se actualiza el número
+ * de destinos y se reinician todos como no alcanzados.
+ *
+ * @param v  Vector de coordenadas de destino en formato
+ *           {f0, c0, f1, c1, …}.
+ */
 void Entidad::setObjetivos(vector<unsigned int> v) {
   destino = v;
   num_destinos = destino.size() / 2;
@@ -74,6 +132,13 @@ void Entidad::setObjetivos(vector<unsigned int> v) {
   }
 }
 
+/**
+ * @brief Devuelve la fila del objetivo en la posición indicada.
+ *
+ * @param pos  Índice del objetivo (0-based).
+ * @return Fila del objetivo. Termina el programa si @p pos está fuera
+ *         de rango.
+ */
 unsigned int Entidad::getObjFil(int pos) {
   if (pos < num_destinos)
     return destino[2 * pos];
@@ -84,6 +149,13 @@ unsigned int Entidad::getObjFil(int pos) {
   }
 }
 
+/**
+ * @brief Devuelve la columna del objetivo en la posición indicada.
+ *
+ * @param pos  Índice del objetivo (0-based).
+ * @return Columna del objetivo. Termina el programa si @p pos está fuera
+ *         de rango.
+ */
 unsigned int Entidad::getObjCol(int pos) {
   if (pos < num_destinos)
     return destino[2 * pos + 1];
@@ -95,8 +167,27 @@ unsigned int Entidad::getObjCol(int pos) {
 }
 
 
+/**
+ * @brief Ejecuta el ciclo de decisión de la entidad para un instante
+ *        de simulación.
+ *
+ * Rellena la estructura @c Sensores con la información disponible para
+ * la entidad (posición, orientación, visión, energía, etc.) y delega
+ * la elección de la acción al comportamiento asociado mediante
+ * @c comportamiento->think(sensor). Controla también las condiciones
+ * de fin de partida (energía agotada, instantes agotados, tiempo de
+ * deliberación excedido) y gestiona el estado de desactivación temporal
+ * de las entidades NPC.
+ *
+ * @param acc     Acción forzada externamente (-1 si se deja decidir
+ *                al comportamiento).
+ * @param vision  Matriz 3×N con las capas de visión: superficie,
+ *                agentes y cotas.
+ * @param level   Nivel de juego actual.
+ * @return Acción elegida por la entidad para este instante.
+ */
 Action Entidad::think(int acc, vector<vector<unsigned char>> vision,
-                      int level) {
+                      int level, int impacto_eco) {
   Action accion = IDLE;
   Sensores sensor;
 
@@ -125,6 +216,7 @@ Action Entidad::think(int acc, vector<vector<unsigned char>> vision,
     sensor.posF = f;
     sensor.posC = c;
     sensor.rumbo = orient;
+    sensor.ecologico = impacto_eco;
 
     if (tipo == jugador) // Poner los sensores que se activan al jugador
     {
@@ -188,6 +280,19 @@ Action Entidad::think(int acc, vector<vector<unsigned char>> vision,
   return accion;
 }
 
+/**
+ * @brief Procesa una interacción externa sobre la entidad.
+ *
+ * Delega en el método @c interact del comportamiento asociado.
+ * Según el valor de retorno del comportamiento, la entidad puede
+ * desaparecer temporalmente (retorno 1), morir (retorno 2) o
+ * revivir (retorno 3).
+ *
+ * @param accion  Acción que provoca la interacción.
+ * @param valor   Valor numérico asociado a la interacción.
+ * @return true  si la interacción provocó un cambio de estado.
+ * @return false si no hubo efecto.
+ */
 bool Entidad::interact(Action accion, int valor) {
   bool out = false;
   int retorno = comportamiento->interact(accion, valor);
@@ -212,6 +317,12 @@ bool Entidad::interact(Action accion, int valor) {
   return out;
 }
 
+/**
+ * @brief Devuelve el carácter que representa el subtipo de la entidad.
+ *
+ * @return 'i' para ingeniero, 't' para técnico, 'e' para excursionista,
+ *         'v' para vándalo, o ' ' si el subtipo no coincide con ninguno.
+ */
 unsigned char Entidad::getSubTipoChar() {
   unsigned char out = ' ';
 
@@ -233,10 +344,32 @@ unsigned char Entidad::getSubTipoChar() {
   return out;
 }
 
+/**
+ * @brief Fija el tiempo que consumirá la siguiente acción.
+ *
+ * Actualmente asigna siempre un coste temporal de 1 instante,
+ * independientemente del tipo de casilla.
+ *
+ * @param celda  Tipo de casilla sobre la que se encuentra la entidad.
+ */
 void Entidad::fixTiempo_sig_accion(unsigned char celda) {
   tiempo_sig_accion = 1;
 }
 
+/**
+ * @brief Calcula y fija el coste en energía (batería) de la siguiente
+ *        acción del jugador.
+ *
+ * El coste depende del tipo de casilla en la que se encuentra la entidad,
+ * de la diferencia de altura con la casilla destino (si procede) y de la
+ * acción a realizar. Los costes cubren las acciones WALK, JUMP, giros
+ * (TURN_SR/TURN_SL), INSTALL, RAISE y DIG; IDLE y COME tienen coste 0.
+ *
+ * @param celdaJugador  Tipo de casilla sobre la que se encuentra la entidad.
+ * @param difAltura     Diferencia de altura entre casilla destino y origen.
+ * @param accion        Acción a ejecutar.
+ * @return Coste en energía de la acción.
+ */
 int Entidad::fixBateria_sig_accion_jugador(unsigned char celdaJugador,
                                            int difAltura, Action accion) {
   bateria_sig_accion = 1;
@@ -352,6 +485,12 @@ int Entidad::fixBateria_sig_accion_jugador(unsigned char celdaJugador,
   return bateria_sig_accion;
 }
 
+/**
+ * @brief Descuenta de la energía de la entidad el coste previamente
+ *        calculado de la siguiente acción.
+ *
+ * Si la energía resultante es negativa, se fija a 0.
+ */
 void Entidad::decBateria_sig_accion() {
   energia -= bateria_sig_accion;
   if (energia < 0)

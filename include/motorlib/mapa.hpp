@@ -56,8 +56,8 @@ public:
 			mapaVisible.push_back(aux);
 		}
 
-		nCols = mapaT.size();
-		nFils = mapaT[0].size();
+		nFils = mapaT.size();
+		nCols = mapaT[0].size();
 	}
 	~Mapa() {}
 

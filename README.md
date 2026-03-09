@@ -74,8 +74,6 @@ A continuación, puedes lanzar el software con interfaz gráfica con `./practica
 Cuando realices cualquier modificación en el código, debes recompilar, así que usa `make clean` y `make -j$(nproc)`.
 
 
-### Instalación en máquina virtual
-Si no tienes linux de forma nativa en tu ordenador, puedes crear una máquina virtual en tu ordenador (por ejemplo, usando VirtualBox), e instalar linux en ella. A partir de ahí, puedes trabajar dentro de ella como si tuvieras linux instalado de forma nativa.
 
 
 ## Más información

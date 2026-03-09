@@ -68,5 +68,4 @@ Goomba3D::Goomba3D(const std::string & filename) : Objeto3D() {
 }
 
 Goomba3D::~Goomba3D() {
-    for (auto h : hijos) delete h;
 }

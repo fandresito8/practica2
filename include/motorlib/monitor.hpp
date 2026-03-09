@@ -4,7 +4,12 @@
 #include "motorlib/entidad.hpp"
 #include "motorlib/mapa.hpp"
 #include "motorlib/util.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 #include <glui/glui.h>
+#pragma GCC diagnostic pop
+
 #include <list>
 
 #include <algorithm>

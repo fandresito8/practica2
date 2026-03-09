@@ -65,6 +65,9 @@ file(GLOB SOURCES_COMPORTAMIENTOS
     "Comportamientos_Agentes/*.cpp" 
     "src/comportamientos/npcs/*.cpp"
 )
+# Marcar include/third_party_system (que apunta a glui) como directorio de sistema 
+# para suprimir warnings en glui.h en todo el proyecto.
+include_directories(SYSTEM "include/third_party_system")
 include_directories("include")
 include_directories(".")
 
@@ -80,6 +83,9 @@ target_link_libraries(obj3DLib ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${JPEG_LIBRAR
 
 add_library(GLUILib ${SOURCES_GLUI})
 target_link_libraries(GLUILib ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
+# Suprimir todos los warnings en la biblioteca GLUI (código de terceros)
+target_compile_options(GLUILib PRIVATE -w)
+target_include_directories(GLUILib SYSTEM PRIVATE "include/glui")
 
 add_library(modelosBelkanLib ${SOURCES_MODELOS})
 target_link_libraries(modelosBelkanLib obj3DLib ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${OPENMP_LIBRARIES} "-lpthread")

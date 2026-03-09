@@ -19,7 +19,7 @@ struct EnLinea{
 };
 
 
-bool lanzar_motor_juego(int &colisiones, int acc = -1);
+bool lanzar_motor_juego(int acc = -1);
 void lanzar_motor_juego2(MonitorJuego &monitor);
 void nucleo_motor_juego(MonitorJuego & monitor, int acc);
 void lanzar_motor_grafico(int argc, char ** argv);

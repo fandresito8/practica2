@@ -71,5 +71,4 @@ Luigi3D::Luigi3D(const std::string & filename) : Objeto3D() {
 }
 
 Luigi3D::~Luigi3D() {
-    for (auto h : hijos) delete h;
 }

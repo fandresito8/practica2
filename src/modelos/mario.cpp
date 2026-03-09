@@ -74,5 +74,4 @@ Mario3D::Mario3D(const std::string & filename) : Objeto3D() {
 }
 
 Mario3D::~Mario3D() {
-    for (auto h : hijos) delete h;
 }

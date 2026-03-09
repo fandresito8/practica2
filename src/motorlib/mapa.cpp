@@ -4,6 +4,14 @@
 #include "motorlib.hpp"
 #include <algorithm>
 
+/**
+ * @brief Establece el color OpenGL según la altura del terreno
+ *        para la vista topológica del minimapa.
+ *
+ * Mapea la altura (0-9) a un rango de brillo en escala de grises.
+ *
+ * @param altura  Valor de altura de la celda.
+ */
 void Mapa::colorTopologyMM(unsigned char altura)
 {
   float h = (float)altura;
@@ -13,6 +21,15 @@ void Mapa::colorTopologyMM(unsigned char altura)
   glColor3f(brillo, brillo, brillo);
 }
 
+/**
+ * @brief Renderiza el valor numérico de la altura dentro de una celda
+ *        del minimapa.
+ *
+ * Elige color de texto blanco o negro en función del brillo del fondo
+ * para asegurar contraste.
+ *
+ * @param altura  Valor de altura a mostrar.
+ */
 void Mapa::renderHeightValue(unsigned char altura) {
   char buf[4];
   sprintf(buf, "%d", (int)altura);
@@ -31,6 +48,16 @@ void Mapa::renderHeightValue(unsigned char altura) {
   }
 }
 
+/**
+ * @brief Establece el color OpenGL de fondo de una celda en el minimapa
+ *        según su tipo de terreno y altura.
+ *
+ * Cada tipo de celda ('P', 'B', 'C', 'A', etc.) tiene una paleta
+ * propia cuyo brillo se modula con la altura.
+ *
+ * @param celda   Carácter que identifica el tipo de terreno.
+ * @param altura  Valor de altura de la celda.
+ */
 void Mapa::colorCeldaMM(unsigned char celda, unsigned char altura)
 {
   float h = altura;
@@ -89,6 +116,19 @@ void Mapa::colorCeldaMM(unsigned char celda, unsigned char altura)
 
 // Global static humanoid for icon representation to avoid leaks
 static Aldeano3D* icon_humanoid = nullptr;
+/**
+ * @brief Dibuja un modelo humanoide 3D con color de material premium.
+ *
+ * Reutiliza una instancia estática de @c Aldeano3D para evitar fugas
+ * de memoria. El color distingue ingeniero (rojo) de técnico (naranja).
+ *
+ * @param r          Componente roja (no utilizada directamente; el
+ *                   material se aplica internamente).
+ * @param g          Componente verde.
+ * @param b          Componente azul.
+ * @param is_orange  Si @c true, aplica material naranja (técnico);
+ *                   si @c false, material rojo (ingeniero).
+ */
 static void drawIconHumanoid(float r, float g, float b, bool is_orange = false) {
     if (!icon_humanoid) icon_humanoid = new Aldeano3D("");
     
@@ -119,7 +159,14 @@ static void drawIconHumanoid(float r, float g, float b, bool is_orange = false) 
     glPopAttrib();
 }
 
-// Helper to draw visual feedback markers in Minimap
+/**
+ * @brief Dibuja marcadores visuales de retroalimentación (cruces de
+ *        colisión) en una celda del minimapa.
+ *
+ * @param i        Fila de la celda.
+ * @param j        Columna de la celda.
+ * @param monitor  Referencia al monitor para consultar los marcadores activos.
+ */
 void drawVisualMarkersMM(int i, int j, const MonitorJuego& monitor) {
     const auto& markers = monitor.getVisualMarkers();
     for (const auto& vm : markers) {
@@ -145,6 +192,18 @@ void drawVisualMarkersMM(int i, int j, const MonitorJuego& monitor) {
 }
 
 
+/**
+ * @brief Dibuja el icono 2D representativo de una celda en el minimapa.
+ *
+ * Selecciona y renderiza el símbolo gráfico adecuado según el tipo de
+ * celda (bosque, agua, tuberia, base, zapatillas…). También dibuja
+ * los segmentos de tubería dinámicos y estáticos.
+ *
+ * @param celda   Tipo de celda.
+ * @param altura  Altura de la celda.
+ * @param i       Fila de la celda en el mapa.
+ * @param j       Columna de la celda en el mapa.
+ */
 void Mapa::drawIconoCeldaMM(unsigned char celda, unsigned char altura, int i, int j)
 {
   float h = altura;
@@ -357,7 +416,11 @@ void Mapa::drawIconoCeldaMM(unsigned char celda, unsigned char altura, int i, in
 }
 
 
-// Helper to draw a spinning gold coin
+/**
+ * @brief Dibuja una moneda 3D giratoria (efecto de animación continua).
+ *
+ * @param size  Factor de escala de la moneda.
+ */
 static void drawCoin(float size) {
     float t = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     float angle = t * 180.0f; // Spin animation
@@ -377,7 +440,13 @@ static void drawCoin(float size) {
     glPopMatrix();
 }
 
-// Helper to draw a stylized 3D sneaker with rounded edges and branding
+/**
+ * @brief Dibuja una zapatilla 3D estilizada con animación de vaivén.
+ *
+ * Incluye suela, cuerpo, parte del tobillo, swoosh y cordones.
+ *
+ * @param size  Factor de escala base.
+ */
 static void drawShoe(float size) {
     float t = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     float bob = 0.5f + 0.5f * sin(t * 3.0f); // Bobbing animation
@@ -444,7 +513,11 @@ static void drawShoe(float size) {
     glPopMatrix();
 }
 
-// Helper to draw the objective (BelPos) in 2D minimap
+/**
+ * @brief Dibuja el objetivo (BelPos) en la vista 2D del minimapa.
+ *
+ * Renderiza un charco de aceite animado con una tubería central.
+ */
 static void drawBelPos2D() {
     float t = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     int numSegments = 32;
@@ -484,7 +557,13 @@ static void drawBelPos2D() {
     glEnd();
 }
 
-// Helper to draw the objective (BelPos) in 3D views (FP and Zenithal)
+/**
+ * @brief Dibuja el objetivo (BelPos) en las vistas 3D (primera persona
+ *        y cenital).
+ *
+ * Renderiza un charco de aceite animado sobre el suelo con una tubería
+ * 3D roja en el centro.
+ */
 static void drawBelPos3D() {
     float t = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     int numSegments = 32;
@@ -521,7 +600,21 @@ static void drawBelPos3D() {
     glPopMatrix();
 }
 
-// Helper to draw a path marker with gradient and animation
+/**
+ * @brief Dibuja un marcador de ruta con animación de pulso.
+ *
+ * El color depende del tipo de plan (blanco = ingeniero, amarillo =
+ * técnico, rojo = tuberías). En 3D se usan esferas; en 2D, rombos
+ * o puntos.
+ *
+ * @param action    Acción asociada al paso del plan.
+ * @param planType  Tipo de plan (0 = ingeniero, 1 = técnico, 2 = tuberías).
+ * @param index     Índice del paso (para desfase de la animación).
+ * @param x         Coordenada X de posición.
+ * @param y         Coordenada Y de posición.
+ * @param z         Coordenada Z de posición.
+ * @param is3D      Si @c true, renderiza en modo 3D; si @c false, en 2D.
+ */
 static void drawPathMarker(Action action, int planType, int index, float x, float y, float z, bool is3D) {
     bool isWalk = (action == WALK);
 
@@ -563,7 +656,17 @@ static void drawPathMarker(Action action, int planType, int index, float x, floa
     glPopMatrix();
 }
 
-// Helper to draw a solid line segment for the plan
+/**
+ * @brief Dibuja un segmento de línea sólida entre dos puntos del plan.
+ *
+ * @param x1        Coordenada X del primer punto.
+ * @param y1        Coordenada Y del primer punto.
+ * @param z1        Coordenada Z del primer punto.
+ * @param x2        Coordenada X del segundo punto.
+ * @param y2        Coordenada Y del segundo punto.
+ * @param z2        Coordenada Z del segundo punto.
+ * @param planType  Tipo de plan (determina el color).
+ */
 void drawPlanLine(float x1, float y1, float z1, float x2, float y2, float z2, int planType) {
     glDisable(GL_LIGHTING);
     glLineWidth(4.0f);
@@ -578,7 +681,16 @@ void drawPlanLine(float x1, float y1, float z1, float x2, float y2, float z2, in
     glEnable(GL_LIGHTING);
 }
 
-// Helper to draw the entire 3D plan (markers and lines)
+/**
+ * @brief Dibuja un plan completo en 3D: marcadores en cada paso y
+ *        líneas de conexión entre pasos consecutivos.
+ *
+ * @param p             Lista de casillas del plan.
+ * @param planType      Tipo de plan (0 = ingeniero, 1 = técnico, 2 = tuberías).
+ * @param filaMed       Fila central del mapa para el cálculo de posición.
+ * @param colMed        Columna central del mapa.
+ * @param mapaAlturas   Matriz de alturas del terreno.
+ */
 static void drawPlans3D(const ListaCasillasPlan &p, int planType, int filaMed, int colMed, const vector<vector<unsigned char>> &mapaAlturas) {
     if (p.size() == 0) return;
     
@@ -619,6 +731,12 @@ static void drawPlans3D(const ListaCasillasPlan &p, int planType, int filaMed, i
 }
 
 
+/**
+ * @brief Establece el color opuesto (contraste) para dibujar texto o
+ *        símbolos sobre una celda en el minimapa.
+ *
+ * @param celda  Tipo de celda para la que se necesita el color de contraste.
+ */
 void Mapa::colorCeldaOpuestoMM(unsigned char celda)
 {
   switch (celda)
@@ -659,6 +777,12 @@ void Mapa::colorCeldaOpuestoMM(unsigned char celda)
   }
 }
 
+/**
+ * @brief Establece un segundo color de contraste (naranja) para
+ *        dibujar el técnico sobre celdas del minimapa.
+ *
+ * @param celda  Tipo de celda.
+ */
 void Mapa::colorCeldaOpuestoMM2(unsigned char celda)
 {
   switch (celda)
@@ -700,6 +824,12 @@ void Mapa::colorCeldaOpuestoMM2(unsigned char celda)
   }
 }
 
+/**
+ * @brief Aplica la rotación OpenGL correspondiente a una orientación
+ *        en el plano 2D del minimapa.
+ *
+ * @param orienParam  Orientación de la entidad.
+ */
 void Mapa::OrientacionEntidadMM(Orientacion orienParam)
 {
   switch (orienParam)
@@ -731,6 +861,12 @@ void Mapa::OrientacionEntidadMM(Orientacion orienParam)
   }
 }
 
+/**
+ * @brief Aplica la rotación OpenGL correspondiente a una orientación
+ *        en la vista de primera persona (eje Y).
+ *
+ * @param orienParam  Orientación de la entidad.
+ */
 void Mapa::OrientacionEntidadFP(Orientacion orienParam)
 {
   switch (orienParam)
@@ -762,6 +898,19 @@ void Mapa::OrientacionEntidadFP(Orientacion orienParam)
   }
 }
 
+/**
+ * @brief Dibuja los complementos 3D propios de cada tipo de celda en la
+ *        vista de primera persona y cenital.
+ *
+ * Según el tipo de celda, renderiza árboles, ladrillos, agua, tuberías,
+ * monedas, zapatillas, muros y otros elementos decorativos.
+ *
+ * @param celda   Tipo de celda.
+ * @param altura  Altura de la celda (carácter ASCII).
+ * @param fil     Fila de la celda.
+ * @param col     Columna de la celda.
+ * @param level   Nivel de juego actual.
+ */
 void Mapa::complementosCelda(unsigned char celda, unsigned char altura, int fil, int col, int level)
 {
   unsigned char h = altura - '0';
@@ -1156,6 +1305,14 @@ void Mapa::complementosCelda(unsigned char celda, unsigned char altura, int fil,
   }
 }
 
+/**
+ * @brief Dibuja la forma 3D simplificada de una entidad según su tipo.
+ *
+ * Utiliza cilindros para ingeniero ('i') y técnico ('t'), esferas
+ * para vándalos ('v') y cubos para excursionistas ('e').
+ *
+ * @param tipoParam  Carácter que identifica el tipo de entidad.
+ */
 void Mapa::formaEntidad(unsigned char tipoParam)
 {
   RevolucionObj3D *jug = new RevolucionObj3D("ply/cilindro.ply", 3);
@@ -1195,6 +1352,17 @@ void Mapa::formaEntidad(unsigned char tipoParam)
   }
 }
 
+/**
+ * @brief Dibuja la ventana de minimapa principal (MM1).
+ *
+ * Renderiza el mapa completo con colores de celda, iconos, entidades,
+ * objetivos y marcadores visuales. Soporta vista topológica y de terreno.
+ *
+ * @param objetivosActivos  Vector de coordenadas de los objetivos activos.
+ * @param level             Nivel de juego actual.
+ * @param drawTopology      Si @c true, dibuja la vista topológica
+ *                          (escala de grises por altura).
+ */
 void Mapa::drawMM1(vector<unsigned int> objetivosActivos, int level, bool drawTopology)
 {
   unsigned int colMed, filaMed;
@@ -1351,6 +1519,13 @@ void Mapa::drawMM1(vector<unsigned int> objetivosActivos, int level, bool drawTo
   }
 }
 
+/**
+ * @brief Combina dos mapas de superficie: copia las casillas conocidas
+ *        de la fuente en las posiciones desconocidas ('?') del resultado.
+ *
+ * @param[in,out] resultado  Mapa destino; las casillas '?' se sobrescriben.
+ * @param fuente             Mapa origen de donde se copian las casillas.
+ */
 void Mapa::JoinMapasSuperficie(vector<vector<unsigned char>> &resultado, const vector<vector<unsigned char>> &fuente)
 {
   for (int i = 0; i < resultado.size(); i++)
@@ -1365,6 +1540,16 @@ void Mapa::JoinMapasSuperficie(vector<vector<unsigned char>> &resultado, const v
 
 // Eliminada JoinMapasPlan
 
+/**
+ * @brief Dibuja la segunda ventana de minimapa (MM2), que muestra el
+ *        mapa visto por un agente concreto o la fusión de ambos.
+ *
+ * @param objetivosActivos  Coordenadas de los objetivos activos.
+ * @param level             Nivel de juego.
+ * @param drawTopology      Si @c true, vista topológica.
+ * @param mapMode           Modo del mapa: 0 = real, 1 = ingeniero,
+ *                          2 = técnico, 3 = fusión.
+ */
 void Mapa::drawMM2(vector<unsigned int> objetivosActivos, int level, bool drawTopology, int mapMode)
 {
   vector<vector<unsigned char>> mapaSuperficie;
@@ -1505,7 +1690,13 @@ struct TrailNode {
 };
 static vector<TrailNode> agent_trail;
 
-// Helper to draw wireframe overlay
+/**
+ * @brief Dibuja una rejilla de alambre (wireframe) sobre las celdas
+ *        visibles.
+ *
+ * Añade líneas de borde para mejorar la percepción de profundidad en
+ * 3D.
+ */
 void Mapa::drawWireframeOverlay() {
     if (!drawGridFP) return;
     glDisable(GL_LIGHTING);
@@ -1515,6 +1706,17 @@ void Mapa::drawWireframeOverlay() {
     glEnable(GL_LIGHTING);
 }
 
+/**
+ * @brief Renderiza la vista en primera persona centrada en una entidad.
+ *
+ * Dibuja el terreno 3D con sus complementos, entidades, objetivos,
+ * planes de ruta y la cámara ubicada en la posición del agente
+ * seleccionado.
+ *
+ * @param entidad            Índice de la entidad en la que se sitúa la cámara.
+ * @param objetivosActivos   Coordenadas de los objetivos activos.
+ * @param level              Nivel de juego actual.
+ */
 void Mapa::drawFirstPerson(int entidad, vector<unsigned int> objetivosActivos, int level)
 {
   unsigned int colMed, filaMed;
@@ -2194,7 +2396,16 @@ void Mapa::drawFirstPerson(int entidad, vector<unsigned int> objetivosActivos, i
     }
  }
 
-// Helper to draw a "Quesito" (Wedge) - TIP AT CENTER, ARC AT BACK
+/**
+ * @brief Dibuja una cuña tridimensional ("quesito") usada como
+ *        indicador del ángulo de visión.
+ *
+ * @param r      Radio de la cuña.
+ * @param h      Altura de la cuña.
+ * @param r_col  Componente roja del color.
+ * @param g_col  Componente verde del color.
+ * @param b_col  Componente azul del color.
+ */
 static void drawQuesito(float r, float h, float r_col, float g_col, float b_col) {
     glDisable(GL_LIGHTING);
     glColor3f(r_col, g_col, b_col);
@@ -2248,6 +2459,18 @@ static void drawQuesito(float r, float h, float r_col, float g_col, float b_col)
     glEnable(GL_LIGHTING);
 }
 
+/**
+ * @brief Renderiza la vista cenital (vista de pájaro) centrada en una
+ *        entidad.
+ *
+ * Dibuja el terreno 3D, complementos, entidades, objetivos, planes
+ * de ruta y la cuña del ángulo de visión del agente desde arriba.
+ *
+ * @param entidad            Índice de la entidad central.
+ * @param objetivosActivos   Coordenadas de los objetivos activos.
+ * @param level              Nivel de juego actual.
+ * @param zoom               Nivel de zoom de la cámara.
+ */
 void Mapa::drawZenithal(int entidad, vector<unsigned int> objetivosActivos, int level, float zoom)
 {
   unsigned int colMed, filaMed;
@@ -2732,6 +2955,13 @@ void Mapa::drawZenithal(int entidad, vector<unsigned int> objetivosActivos, int 
   }
 }
 
+/**
+ * @brief Devuelve el índice de la entidad que ocupa una celda determinada.
+ *
+ * @param f  Fila de la celda.
+ * @param c  Columna de la celda.
+ * @return Índice de la entidad, o -1 si la celda está desocupada.
+ */
 int Mapa::QuienEnCasilla(int f, int c)
 {
   int out = -1; // Desocupada
@@ -2748,6 +2978,13 @@ int Mapa::QuienEnCasilla(int f, int c)
   return out;
 }
 
+/**
+ * @brief Comprueba si la casilla que está delante de una entidad está
+ *        ocupada por otra entidad.
+ *
+ * @param entidad  Índice de la entidad cuya casilla frontal se comprueba.
+ * @return Índice de la entidad que ocupa la casilla, o -1 si está libre.
+ */
 int Mapa::casillaOcupada(unsigned int entidad)
 {
   unsigned int f = (*entidades)[entidad]->getFil();
@@ -2788,6 +3025,14 @@ int Mapa::casillaOcupada(unsigned int entidad)
   return QuienEnCasilla(f, c);
 }
 
+/**
+ * @brief Calcula las coordenadas de la celda situada N casillas por
+ *        delante de una entidad en su dirección actual.
+ *
+ * @param entidad   Índice de la entidad.
+ * @param casillas  Número de casillas de avance.
+ * @return Par (fila, columna) de la celda resultante.
+ */
 pair<int, int> Mapa::NCasillasDelante(unsigned int entidad, int casillas)
 {
   int out = -1;
@@ -2856,14 +3101,18 @@ pair<int, int> Mapa::NCasillasDelante(unsigned int entidad, int casillas)
   return r;
 }
 
-// Devuelve 0 si es posible correr,
-//          1 choca contra un muro.
-//          2 cae en un precipicio.
-//          3 choca contra un tecnico.
-//          4 choca contra un excursionista.
-//          5 choca contra un vandalo.
-//          6 choca contra un árbol.
-
+/**
+ * @brief Comprueba si una entidad puede ejecutar la acción JUMP (correr)
+ *        avanzando @p avance_size casillas.
+ *
+ * Verifica las casillas intermedias y la casilla destino en busca de
+ * obstáculos, precipicios u otras entidades.
+ *
+ * @param entidad      Índice de la entidad.
+ * @param avance_size  Número de casillas que comprende el salto.
+ * @return 0 si es posible; 1 = muro, 2 = precipicio, 3 = técnico,
+ *         4 = excursionista, 5 = vándalo, 6 = árbol.
+ */
 int Mapa::EsPosibleCorrer(unsigned int entidad, int avance_size)
 {
   int out = -4;
@@ -2949,6 +3198,19 @@ int Mapa::EsPosibleCorrer(unsigned int entidad, int avance_size)
   return accesible;
 }
 
+/**
+ * @brief Comprueba si hay entidades en las tres casillas siguientes
+ *        en la dirección de lanzamiento (PUSH) de una entidad.
+ *
+ * Si no encuentra entidad, busca una casilla transitable ('S' o 'H')
+ * entre las tres posiciones y devuelve sus coordenadas.
+ *
+ * @param entidad    Índice de la entidad que lanza.
+ * @param[out] fil   Fila de la casilla destino del empujón.
+ * @param[out] col   Columna de la casilla destino del empujón.
+ * @return Índice de la entidad encontrada, o códigos negativos indicando
+ *         la distancia de la casilla transitable más lejana.
+ */
 int Mapa::casillaOcupadaThrow(unsigned int entidad, int &fil, int &col)
 {
   int out = -4;
@@ -3069,6 +3331,11 @@ int Mapa::casillaOcupadaThrow(unsigned int entidad, int &fil, int &col)
   return out;
 }
 
+/**
+ * @brief Gira la cámara del visor a la izquierda.
+ *
+ * @param grados  Grados de rotación (90 o 45).
+ */
 void Mapa::girarCamaraIzquierda(int grados)
 {
   if (grados == 90)
@@ -3089,6 +3356,11 @@ void Mapa::girarCamaraIzquierda(int grados)
   }
 }
 
+/**
+ * @brief Gira la cámara del visor a la derecha.
+ *
+ * @param grados  Grados de rotación (90 o 45).
+ */
 void Mapa::girarCamaraDerecha(int grados)
 {
   if (grados == 90)
@@ -3109,6 +3381,15 @@ void Mapa::girarCamaraDerecha(int grados)
   }
 }
 
+/**
+ * @brief Devuelve el carácter que identifica a la entidad presente
+ *        en una celda.
+ *
+ * @param f  Fila de la celda.
+ * @param c  Columna de la celda.
+ * @return 'i' (ingeniero), 't' (técnico), 'e' (excursionista),
+ *         'v' (vándalo) o '_' si la celda está libre.
+ */
 unsigned char Mapa::entidadEnCelda(unsigned int f, unsigned int c)
 {
   unsigned char out = '_';
@@ -3147,6 +3428,17 @@ unsigned char Mapa::entidadEnCelda(unsigned int f, unsigned int c)
   return out;
 }
 
+/**
+ * @brief Construye los vectores sensoriales de visión para una entidad.
+ *
+ * Genera tres capas de 16 elementos cada una (superficie, agentes y
+ * cotas) correspondientes a la casilla actual y las 15 casillas
+ * del cono de visión frontal (3 filas de profundidad) según la
+ * orientación de la entidad.
+ *
+ * @param Entidad  Índice de la entidad.
+ * @return Matriz 3×16: [0] = superficie, [1] = agentes, [2] = cotas.
+ */
 vector<vector<unsigned char>> Mapa::vision(unsigned int Entidad)
 {
   unsigned int fil = (*entidades)[Entidad]->getFil();
@@ -3442,6 +3734,14 @@ vector<vector<unsigned char>> Mapa::vision(unsigned int Entidad)
   return fov;
 }
 
+/**
+ * @brief Indica si un carácter de celda corresponde a un elemento de
+ *        tubería (estático o terminal).
+ *
+ * @param c  Carácter de la celda.
+ * @return true si es un tipo de tubería ('U', 'h', 'v', 'I', 'J',
+ *         '1'–'6').
+ */
 bool Mapa::esTuberia(unsigned char c) {
     return (c == 'U' || c == 'h' || c == 'v' || c == 'I' || c == 'J' || 
             c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6');
