@@ -458,12 +458,9 @@ bool actuacionIngeniero(unsigned char celdaJ_inicial, unsigned char celdaJ_fin,
             int startF = monitor.get_entidad(0)->getObjFil(0);
             int startC = monitor.get_entidad(0)->getObjCol(0);
             if (monitor.checkPipeConnection(startF, startC)) {
-              if (monitor.getLevel() == 5)
-                monitor.addMensaje("¡Nivel 5 completado con Exito! Conexion de tuberias establecida.\n");
-              else
-                monitor.addMensaje("¡Nivel 6 completado con Exito! Conexion de tuberias establecida.\n");
               monitor.get_entidad(0)->setCompletoLosObjetivos();
-              monitor.get_entidad(0)->setFin(true);
+              monitor.setMostrarResultados(true);
+              monitor.finalizarJuego();
             }
           }
 
