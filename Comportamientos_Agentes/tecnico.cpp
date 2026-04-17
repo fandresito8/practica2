@@ -28,11 +28,87 @@ Action ComportamientoTecnico::think(Sensores sensores) {
   return accion;
 }
 
+int VeoCasillaInteresanteT(char i, char c, char d)
+{
+  if (c == 'U') return 2;
+  else if (i == 'U') return 1;
+  else if (d == 'U') return 3;
+  else if (c == 'C') return 2;
+  else if (i == 'C') return 1;
+  else if (d == 'C') return 3;
+  else if (c == 'D') return 2;
+  else if (i == 'D') return 1;
+  else if (d == 'D') return 3;
+  else return 0;
+}
+
+char ViablePorAlturaT(char casilla, int dif)
+{
+  if (abs(dif) <= 1) return casilla;
+  else return 'P';
+}
 
 // Niveles del técnico
 Action ComportamientoTecnico::ComportamientoTecnicoNivel_0(Sensores sensores) {
   Action accion = IDLE;
+  ActualizarMapa(sensores);
 
+  if (encerradas.empty()) {
+		encerradas = vector<vector<unsigned char>>(mapaResultado.size(), vector<unsigned char>(mapaResultado[0].size(), 0));
+	}
+
+  if (sensores.superficie[0] == 'D') {
+    tiene_zapatillas = true;
+  }
+
+  if (sensores.superficie[0] == 'U') {
+    return IDLE;
+  }
+
+  if (sensores.agentes[2] == 'i' or sensores.agentes[6] == 'i') {
+	vuelta = 3;
+  }
+  else if (sensores.agentes[1] == 'i') {
+    vuelta = 3;
+  }
+  else if (sensores.agentes[3] == 'i') {
+    vuelta = 3;
+  }
+
+  char i = ViablePorAlturaT(sensores.superficie[1], sensores.cota[1]-sensores.cota[0]);
+  char c = ViablePorAlturaT(sensores.superficie[2], sensores.cota[2]-sensores.cota[0]);
+  char d = ViablePorAlturaT(sensores.superficie[3], sensores.cota[3]-sensores.cota[0]);
+
+  int pos = VeoCasillaInteresanteT(i, c, d);
+  switch (pos) {
+    case 2:
+      accion = WALK;
+      break;
+    case 1:
+      accion = TURN_SL;
+      break;
+    case 3:
+      accion = TURN_SR;
+      break;
+    default:
+      if (encerradas[sensores.posF][sensores.posC] == 1) {
+        encerradas[sensores.posF][sensores.posC] = 2;
+        if (!vuelta) vuelta = 2;
+        accion = TURN_SR;
+      }
+      else {
+        encerradas[sensores.posF][sensores.posC] = 1;
+        accion = TURN_SL;
+      }
+      break;
+  }
+
+  if (vuelta > 0) {
+    vuelta--;
+    return TURN_SL;
+  }
+
+  last_action = accion;
   return accion;
 }
 

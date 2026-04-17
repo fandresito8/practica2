@@ -5,6 +5,7 @@
 #include <time.h>
 #include <thread>
 #include <list>
+#include <set>
 
 #include "comportamientos/comportamiento.hpp"
 
@@ -32,7 +33,11 @@ public:
    * @param size Tamaño del mapa (si es 0, se inicializa más tarde)
    */
   ComportamientoTecnico(unsigned int size = 0) : Comportamiento(size) {
-    // Inicializar Variables de Estado
+    last_action = IDLE;
+    tiene_zapatillas = false;
+    vuelta = 0;
+    bordeando = false;
+    bordeo_der = true;
   }
 
   /**
@@ -187,8 +192,12 @@ private:
   // =========================================================================
   // VARIABLES DE ESTADO (PUEDEN SER EXTENDIDAS POR EL ALUMNO)
   // =========================================================================
-
-  
+  Action last_action;
+  bool tiene_zapatillas;
+  int vuelta;
+  vector<vector<unsigned char>> encerradas;
+  bool bordeando;
+  bool bordeo_der;
 };
 
 #endif

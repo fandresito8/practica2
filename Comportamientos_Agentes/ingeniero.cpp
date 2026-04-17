@@ -43,10 +43,92 @@ Action ComportamientoIngeniero::think(Sensores sensores)
   return accion;
 }
 
+int VeoCasillaInteresanteI(char i, char c, char d, bool zap)
+{
+  if (c == 'U') return 2;
+  else if (i == 'U') return 1;
+  else if (d == 'U') return 3;
+  else if (!zap) {
+    if (c == 'D') return 2;
+    else if (i == 'D') return 1;
+    else if (d == 'D') return 3;
+  }
+  if (c == 'C') return 2;
+  else if (i == 'C') return 1;
+  else if (d == 'C') return 3;
+  else return 0;
+}
+
+char ViablePorAlturaI (char casilla, int dif, bool zap)
+{
+  if (abs(dif) <= 1 or (zap and abs(dif) <= 2)) return casilla;
+  else return 'P';
+}
+
 // Niveles iniciales (Comportamientos reactivos simples)
 Action ComportamientoIngeniero::ComportamientoIngenieroNivel_0(Sensores sensores)
 {
   Action accion = IDLE;
+  ActualizarMapa(sensores);
+
+  if (encerradas.empty()) {
+		encerradas = vector<vector<unsigned char>>(mapaResultado.size(), vector<unsigned char>(mapaResultado[0].size(), 0));
+	}
+
+  if (sensores.superficie[0] == 'D') {
+    tiene_zapatillas = true;
+  }
+
+  if (sensores.superficie[0] == 'U') {
+    return IDLE;
+  }
+
+  if (sensores.agentes[2] == 't' or sensores.agentes[6] == 't') {
+	vuelta = 3;
+  }
+  else if (sensores.agentes[1] == 't') {
+    vuelta = 3;
+  }
+  else if (sensores.agentes[3] == 't') {
+    vuelta = 3;
+  }
+
+  char i = ViablePorAlturaI(sensores.superficie[1], sensores.cota[1]-sensores.cota[0], tiene_zapatillas);
+  char c = ViablePorAlturaI(sensores.superficie[2], sensores.cota[2]-sensores.cota[0], tiene_zapatillas);
+  char d = ViablePorAlturaI(sensores.superficie[3], sensores.cota[3]-sensores.cota[0], tiene_zapatillas);
+
+  int pos = VeoCasillaInteresanteI(i, c, d, tiene_zapatillas);
+
+  switch (pos) {
+    case 2:
+      accion = WALK;
+      break;
+    case 1:
+      accion = TURN_SL;
+      break;
+    case 3:
+      accion = TURN_SR;
+      break;
+    default:
+      if (encerradas[sensores.posF][sensores.posC] == 1) {
+        encerradas[sensores.posF][sensores.posC] = 2;
+        if (!vuelta) vuelta = 2;
+        accion = TURN_SR;
+      }
+      else {
+        encerradas[sensores.posF][sensores.posC] = 1;
+        accion = TURN_SL;
+        cout << "ugeniero encerrau" << endl;
+      }
+      break;
+  }
+
+  if (vuelta > 0) {
+    vuelta--;
+    return TURN_SL;
+  }
+
+  last_action = accion;
   return accion;
 }
 
