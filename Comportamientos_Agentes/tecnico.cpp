@@ -28,18 +28,30 @@ Action ComportamientoTecnico::think(Sensores sensores) {
   return accion;
 }
 
-int VeoCasillaInteresanteT(char i, char c, char d)
+int VeoCasillaInteresanteT(char i, char c, char d, bool zap, int vis_i, int vis_c, int vis_d)
 {
-  if (c == 'U') return 2;
-  else if (i == 'U') return 1;
-  else if (d == 'U') return 3;
-  else if (c == 'C') return 2;
-  else if (i == 'C') return 1;
-  else if (d == 'C') return 3;
-  else if (c == 'D') return 2;
-  else if (i == 'D') return 1;
-  else if (d == 'D') return 3;
-  else return 0;
+    if (c == 'U') return 2;
+    else if (i == 'U') return 1;
+    else if (d == 'U') return 3;
+    else if (!zap) {
+        if (c == 'D') return 2;
+        else if (i == 'D') return 1;
+        else if (d == 'D') return 3;
+    }
+
+    bool ci = (i == 'C' || i == 'D');
+    bool cc = (c == 'C' || c == 'D');
+    bool cd = (d == 'C' || d == 'D');
+
+    if (!ci && !cc && !cd) return 0;
+
+    int vi = ci ? vis_i : INT_MAX;
+    int vc = cc ? vis_c : INT_MAX;
+    int vd = cd ? vis_d : INT_MAX;
+
+    if (vc <= vi && vc <= vd) return 2;
+    else if (vi <= vd)        return 1;
+    else                      return 3;
 }
 
 char ViablePorAlturaT(char casilla, int dif)
@@ -53,9 +65,12 @@ Action ComportamientoTecnico::ComportamientoTecnicoNivel_0(Sensores sensores) {
   Action accion = IDLE;
   ActualizarMapa(sensores);
 
-  if (encerradas.empty()) {
-		encerradas = vector<vector<unsigned char>>(mapaResultado.size(), vector<unsigned char>(mapaResultado[0].size(), 0));
-	}
+  if (mapa_visitas.empty()) {
+    mapa_visitas = vector<vector<int>>(mapaResultado.size(), vector<int>(mapaResultado[0].size(), 0));
+  }
+
+  mapa_visitas[sensores.posF][sensores.posC]++;
+  pasos_desde_ultima_visita++;
 
   if (sensores.superficie[0] == 'D') {
     tiene_zapatillas = true;
@@ -65,47 +80,80 @@ Action ComportamientoTecnico::ComportamientoTecnicoNivel_0(Sensores sensores) {
     return IDLE;
   }
 
-  if (sensores.agentes[2] == 'i' or sensores.agentes[6] == 'i') {
-	vuelta = 3;
-  }
-  else if (sensores.agentes[1] == 'i') {
-    vuelta = 3;
-  }
-  else if (sensores.agentes[3] == 'i') {
-    vuelta = 3;
-  }
-
   char i = ViablePorAlturaT(sensores.superficie[1], sensores.cota[1]-sensores.cota[0]);
   char c = ViablePorAlturaT(sensores.superficie[2], sensores.cota[2]-sensores.cota[0]);
   char d = ViablePorAlturaT(sensores.superficie[3], sensores.cota[3]-sensores.cota[0]);
 
-  int pos = VeoCasillaInteresanteT(i, c, d);
+  ubicacion actual;
+  actual.f = sensores.posF;
+  actual.c = sensores.posC;
+  actual.brujula = sensores.rumbo;
+
+  ubicacion pos_i = Izquierda(actual);
+  ubicacion pos_c = Delante(actual);
+  ubicacion pos_d = Derecha(actual);
+
+  int vis_i = mapa_visitas[pos_i.f][pos_i.c];
+  int vis_c = mapa_visitas[pos_c.f][pos_c.c];
+  int vis_d = mapa_visitas[pos_d.f][pos_d.c];
+
+  if (sensores.agentes[2] == 'i' || c == 'P') { c = 'P'; vis_c = INT_MAX; }
+  if (sensores.agentes[1] == 'i' || i == 'P') { i = 'P'; vis_i = INT_MAX; }
+  if (sensores.agentes[3] == 'i' || d == 'P') { d = 'P'; vis_d = INT_MAX; }
+
+  char sl1 = ViablePorAlturaT(sensores.superficie[4], sensores.cota[4]-sensores.cota[0]);
+  char sl2 = ViablePorAlturaT(sensores.superficie[5], sensores.cota[5]-sensores.cota[0]);
+  char sr1 = ViablePorAlturaT(sensores.superficie[8], sensores.cota[8]-sensores.cota[0]);
+  char sr2 = ViablePorAlturaT(sensores.superficie[7], sensores.cota[7]-sensores.cota[0]);
+
+  bool hay_algo_izq = (sl1 == 'C' || sl1 == 'D' || sl1 == 'U' || sl2 == 'C' || sl2 == 'D' || sl2 == 'U');
+  bool hay_algo_der = (sr1 == 'C' || sr1 == 'D' || sr1 == 'U' || sr2 == 'C' || sr2 == 'D' || sr2 == 'U');
+
+  ubicacion pos_ii = Izquierda(pos_i);
+  ubicacion pos_ci = Izquierda(pos_c);
+  ubicacion pos_cd = Derecha(pos_c);
+  ubicacion pos_dd = Derecha(pos_d);
+
+  int vis_ii = mapa_visitas[pos_ii.f][pos_ii.c];
+  int vis_ci = mapa_visitas[pos_ci.f][pos_ci.c];
+  int vis_cd = mapa_visitas[pos_cd.f][pos_cd.c];
+  int vis_dd = mapa_visitas[pos_dd.f][pos_dd.c];
+
+  int score_izq = INT_MAX, score_der = INT_MAX;
+
+  if (sl1 == 'C' || sl1 == 'D' || sl1 == 'U') score_izq = min(score_izq, vis_ii);
+  if (sl2 == 'C' || sl2 == 'D' || sl2 == 'U') score_izq = min(score_izq, vis_ci);
+  if (sr2 == 'C' || sr2 == 'D' || sr2 == 'U') score_der = min(score_der, vis_cd);
+  if (sr1 == 'C' || sr1 == 'D' || sr1 == 'U') score_der = min(score_der, vis_dd);
+
+  int pos = VeoCasillaInteresanteT(i, c, d, tiene_zapatillas, vis_i, vis_c, vis_d);
+
   switch (pos) {
-    case 2:
-      accion = WALK;
-      break;
-    case 1:
-      accion = TURN_SL;
-      break;
-    case 3:
-      accion = TURN_SR;
-      break;
+    case 2: accion = WALK;     break;
+    case 1: accion = TURN_SL;  break;
+    case 3: accion = TURN_SR;  break;
     default:
-      if (encerradas[sensores.posF][sensores.posC] == 1) {
-        encerradas[sensores.posF][sensores.posC] = 2;
-        if (!vuelta) vuelta = 2;
+      if (score_der < score_izq)
         accion = TURN_SR;
-      }
-      else {
-        encerradas[sensores.posF][sensores.posC] = 1;
+      else
         accion = TURN_SL;
-      }
       break;
   }
 
-  if (vuelta > 0) {
-    vuelta--;
-    return TURN_SL;
+  if (accion == TURN_SL) {
+    giros_izq_consecutivos++;
+  } else {
+    giros_izq_consecutivos = 0;
+  }
+
+  if (giros_izq_consecutivos >= 2) {
+    giros_izq_consecutivos = 0;
+    pasos_evasion = 3;
+  }
+
+  if (pasos_evasion > 0) {
+    pasos_evasion--;
+    return TURN_SR;
   }
 
   last_action = accion;
@@ -402,6 +450,79 @@ ubicacion ComportamientoTecnico::Delante(const ubicacion &actual) const {
   return delante;
 }
 
+ubicacion ComportamientoTecnico::Izquierda(const ubicacion &actual) const
+{
+  ubicacion izquierda = actual;
+  switch (actual.brujula)
+  {
+  case 0:
+    izquierda.f--;
+    izquierda.c--;
+    break; // norte -> noroeste
+  case 1:
+    izquierda.f--;
+    break; // noreste -> norte
+  case 2:
+    izquierda.f--;
+    izquierda.c++;
+    break; // este -> noreste
+  case 3:
+    izquierda.c++;
+    break; // sureste -> este
+  case 4:
+    izquierda.f++;
+    izquierda.c++;
+    break; // sur -> sureste
+  case 5:
+    izquierda.f++;
+    break; // suroeste -> sur
+  case 6:
+    izquierda.f++;
+    izquierda.c--;
+    break; // oeste -> suroeste
+  case 7:
+    izquierda.c--;
+    break; // noroeste -> oeste
+  }
+  return izquierda;
+}
+
+ubicacion ComportamientoTecnico::Derecha(const ubicacion &actual) const
+{
+  ubicacion derecha = actual;
+  switch (actual.brujula)
+  {
+  case 0:
+    derecha.f--;
+    derecha.c++;
+    break; // norte -> noreste
+  case 1:
+    derecha.c++;
+    break; // noreste -> este
+  case 2:
+    derecha.f++;
+    derecha.c++;
+    break; // este -> sureste
+  case 3:
+    derecha.f++;
+    break; // sureste -> sur
+  case 4:
+    derecha.f++;
+    derecha.c--;
+    break; // sur -> suroeste
+  case 5:
+    derecha.c--;
+    break; // suroeste -> oeste
+  case 6:
+    derecha.f--;
+    derecha.c--;
+    break; // oeste -> noroeste
+  case 7:
+    derecha.f--;
+    break; // noroeste -> norte
+  }
+  return derecha;
+}
 
 /**
  * @brief Imprime por consola la secuencia de acciones de un plan.

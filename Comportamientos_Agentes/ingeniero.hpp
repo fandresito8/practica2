@@ -7,6 +7,7 @@
 #include <set>
 #include <thread>
 #include <time.h>
+#include <climits>
 
 #include "comportamientos/comportamiento.hpp"
 
@@ -23,9 +24,9 @@ public:
   ComportamientoIngeniero(unsigned int size = 0) : Comportamiento(size) {
     last_action = IDLE;
     tiene_zapatillas = false;
-    vuelta = 0;
-    bordeando = false;
-    bordeo_der = true;
+    pasos_desde_ultima_visita = 0;
+    giros_izq_consecutivos = 0;
+    pasos_evasion = 0;
   }
 
   /**
@@ -148,6 +149,20 @@ protected:
    */
   ubicacion Delante(const ubicacion &actual) const;
 
+  /**
+   * @brief Devuelve la posición (fila, columna) de la casilla diagonal izquierda respecto al agente.
+   * @param actual Estado actual del agente (fila, columna, orientacion).
+   * @return Estado con la fila y columna de la casilla diagonal izquierda.
+   */
+  ubicacion Izquierda(const ubicacion &actual) const;
+
+  /**
+   * @brief Devuelve la posición (fila, columna) de la casilla diagonal derecha respecto al agente.
+   * @param actual Estado actual del agente (fila, columna, orientacion).
+   * @return Estado con la fila y columna de la casilla diagonal derecha.
+   */
+  ubicacion Derecha(const ubicacion &actual) const;
+
   bool es_camino(unsigned char c) const;
 
   /**
@@ -188,10 +203,10 @@ private:
   // =========================================================================
   Action last_action;
   bool tiene_zapatillas;
-  int vuelta;
-  vector<vector<unsigned char>> encerradas;
-  bool bordeando;
-  bool bordeo_der;
+  vector<vector<int>> mapa_visitas;
+  int pasos_desde_ultima_visita;
+  int giros_izq_consecutivos;
+  int pasos_evasion;
 };
 
 #endif
