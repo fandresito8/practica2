@@ -21,7 +21,35 @@
  * El técnico colabora con el ingeniero para resolver el problema de instalación de tuberías
  */
 
+// Estado del agente Técnico
+struct EstadoT {
+    ubicacion site;
+    bool zapatillas;
 
+    bool operator==(const EstadoT &st) const {
+        return site == st.site and zapatillas == st.zapatillas;
+    }
+};
+
+// Nodo para el algoritmo de búsqueda
+struct NodoT {
+  EstadoT estado;
+  list<Action> secuencia;
+
+  bool operator==(const NodoT &node) const {
+    return estado == node.estado;
+  }
+
+  bool operator<(const NodoT &node) const{
+    if (estado.site.f < node.estado.site.f) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c < node.estado.site.c) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and estado.site.brujula <
+    node.estado.site.brujula) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and estado.site.brujula ==
+    node.estado.site.brujula and estado.zapatillas < node.estado.zapatillas) return true;
+    else return false;
+  }
+};
 
 class ComportamientoTecnico : public Comportamiento {
 public:
@@ -37,8 +65,9 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     pasos_desde_ultima_visita = 0;
-    giros_izq_consecutivos = 0;
+    giros_consecutivos = 0;
     pasos_evasion = 0;
+    gira_izq = true;
   }
 
   /**
@@ -50,7 +79,8 @@ public:
                        std::vector<std::vector<unsigned char>> mapaC): 
                        Comportamiento(mapaR, mapaC) {
     // Inicializar Variables de Estado
-
+    hayPlan = false;
+    tiene_zapatillas = false;
   }
 
   ComportamientoTecnico(const ComportamientoTecnico &comport): Comportamiento(comport) {}
@@ -61,7 +91,7 @@ public:
    * Estudia los sensores y decide la siguiente acción.
    * 
    * EJEMPLO DE USO:
-   * Action accion = think(sensores);
+   * Action accion = think(sensores);ComportamientoTecnicoNivelComportamientoTecnicoNivel
    * return accion; // El motor ejecutará esta acción
    */
   Action think(Sensores sensores);
@@ -87,14 +117,24 @@ public:
  * @return Acción a realizar.
  */
   Action ComportamientoTecnicoNivel_1(Sensores sensores);
-  
+
 /**
  * @brief Comportamiento del técnico para el Nivel 2.
  * @param sensores Datos actuales de los sensores.
  * @return Acción a realizar.
  */
   Action ComportamientoTecnicoNivel_2(Sensores sensores);
-  
+
+  list<Action> B_Anchura(const EstadoT &inicio, const EstadoT &fin,
+                        const vector<vector<unsigned char>> &terreno,
+                        const vector<vector<unsigned char>> &altura);
+
+  list<Action> B_Anchura_V2(const EstadoT &inicio, const EstadoT &fin,
+                        const vector<vector<unsigned char>> &terreno,
+                        const vector<vector<unsigned char>> &altura);
+
+  Action ComportamientoTecnicoNivel_E(Sensores sensores);
+
 /**
  * @brief Comportamiento del técnico para el Nivel 3.
  * @param sensores Datos actuales de los sensores.
@@ -211,8 +251,13 @@ private:
   bool tiene_zapatillas;
   vector<vector<int>> mapa_visitas;
   int pasos_desde_ultima_visita;
-  int giros_izq_consecutivos;
+  int giros_consecutivos;
   int pasos_evasion;
+  bool gira_izq;
+
+  // Deliberativos
+  list<Action> plan;
+  bool hayPlan;
 };
 
 #endif

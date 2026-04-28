@@ -25,8 +25,9 @@ public:
     last_action = IDLE;
     tiene_zapatillas = false;
     pasos_desde_ultima_visita = 0;
-    giros_izq_consecutivos = 0;
+    giros_consecutivos = 0;
     pasos_evasion = 0;
+    gira_izq = true;
   }
 
   /**
@@ -205,8 +206,9 @@ private:
   bool tiene_zapatillas;
   vector<vector<int>> mapa_visitas;
   int pasos_desde_ultima_visita;
-  int giros_izq_consecutivos;
+  int giros_consecutivos;
   int pasos_evasion;
+  bool gira_izq;
 };
 
 #endif
