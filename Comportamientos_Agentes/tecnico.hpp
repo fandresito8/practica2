@@ -23,32 +23,38 @@
 
 // Estado del agente Técnico
 struct EstadoT {
-    ubicacion site;
-    bool zapatillas;
+  ubicacion site;
+  bool zapatillas;
 
-    bool operator==(const EstadoT &st) const {
-        return site == st.site and zapatillas == st.zapatillas;
-    }
+  bool operator==(const EstadoT &st) const {
+    return site == st.site and zapatillas == st.zapatillas;
+  }
+
+  bool operator<(const EstadoT &st) const {
+    if (site.f < st.site.f) return true;
+    if (site.f == st.site.f && site.c < st.site.c) return true;
+    if (site.f == st.site.f && site.c == st.site.c && site.brujula < st.site.brujula) return true;
+    if (site.f == st.site.f && site.c == st.site.c &&
+        site.brujula == st.site.brujula && zapatillas < st.zapatillas) return true;
+    return false;
+  }
 };
 
-// Nodo para el algoritmo de búsqueda
 struct NodoT {
   EstadoT estado;
   list<Action> secuencia;
+  int g; // coste acumulado
+  int h; // heurística
 
   bool operator==(const NodoT &node) const {
     return estado == node.estado;
   }
+};
 
-  bool operator<(const NodoT &node) const{
-    if (estado.site.f < node.estado.site.f) return true;
-    else if (estado.site.f == node.estado.site.f and estado.site.c < node.estado.site.c) return true;
-    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and estado.site.brujula <
-    node.estado.site.brujula) return true;
-    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and estado.site.brujula ==
-    node.estado.site.brujula and estado.zapatillas < node.estado.zapatillas) return true;
-    else return false;
-  }
+struct Comparador {
+    bool operator()(const NodoT &a, const NodoT &b) {
+        return (a.g + a.h) > (b.g + b.h); // menor f = mayor prioridad
+    }
 };
 
 class ComportamientoTecnico : public Comportamiento {
@@ -78,9 +84,9 @@ public:
   ComportamientoTecnico(std::vector<std::vector<unsigned char>> mapaR, 
                        std::vector<std::vector<unsigned char>> mapaC): 
                        Comportamiento(mapaR, mapaC) {
-    // Inicializar Variables de Estado
     hayPlan = false;
     tiene_zapatillas = false;
+    comprobando_obstaculiza = true;
   }
 
   ComportamientoTecnico(const ComportamientoTecnico &comport): Comportamiento(comport) {}
@@ -125,15 +131,23 @@ public:
  */
   Action ComportamientoTecnicoNivel_2(Sensores sensores);
 
-  list<Action> B_Anchura(const EstadoT &inicio, const EstadoT &fin,
-                        const vector<vector<unsigned char>> &terreno,
-                        const vector<vector<unsigned char>> &altura);
+  void AnularMatrizA(vector<vector<unsigned char>> &m);
 
-  list<Action> B_Anchura_V2(const EstadoT &inicio, const EstadoT &fin,
-                        const vector<vector<unsigned char>> &terreno,
-                        const vector<vector<unsigned char>> &altura);
+  void VisualizaPlan(const EstadoT &st, const list<Action> &plan);
 
-  Action ComportamientoTecnicoNivel_E(Sensores sensores);
+  EstadoT NextCasillaTecnico(const EstadoT &st);
+
+  bool CasillaAccesibleTecnico(const EstadoT &st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
+
+  EstadoT applyT(Action accion, const EstadoT & st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
+
+  void PintaPlan(const list<Action> &plan, bool zap);
+
+  list<Action> A_Star(const EstadoT &inicio, const EstadoT &final,
+                      const vector<vector<unsigned char>> &terreno,
+                      const vector<vector<unsigned char>> &altura);
+
+  int heuristica(const EstadoT &st, const EstadoT &fin);
 
 /**
  * @brief Comportamiento del técnico para el Nivel 3.
@@ -258,6 +272,7 @@ private:
   // Deliberativos
   list<Action> plan;
   bool hayPlan;
+  bool comprobando_obstaculiza;
 };
 
 #endif

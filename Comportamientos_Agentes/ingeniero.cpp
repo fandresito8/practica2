@@ -246,7 +246,178 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_1(Sensores sensores
   return accion;
 }
 
-// Niveles avanzados (Uso de búsqueda)
+EstadoI ComportamientoIngeniero::NextCasillaIngeniero(const EstadoI &st) {
+  EstadoI siguiente = st;
+  switch (st.site.brujula) {
+    case norte:     siguiente.site.f = st.site.f - 1; break;
+    case noreste:   siguiente.site.f = st.site.f - 1;
+    siguiente.site.c = st.site.c + 1; break;
+    case este:      siguiente.site.c = st.site.c + 1; break;
+    case sureste:   siguiente.site.f = st.site.f + 1;
+    siguiente.site.c = st.site.c + 1; break;
+    case sur:       siguiente.site.f = st.site.f + 1; break;
+    case suroeste:  siguiente.site.f = st.site.f + 1;
+    siguiente.site.c = st.site.c - 1; break;
+    case oeste:     siguiente.site.c = st.site.c - 1; break;
+    case noroeste:  siguiente.site.f = st.site.f - 1;
+    siguiente.site.c = st.site.c - 1; break;
+  }
+  return siguiente;
+}
+
+bool ComportamientoIngeniero::CasillaAccesibleIngeniero(const EstadoI &st,
+                              const vector<vector<unsigned char>> &terreno,
+                              const vector<vector<unsigned char>> &altura) {
+  EstadoI next = NextCasillaIngeniero(st);
+  bool check1 = terreno[next.site.f][next.site.c] != 'P' and
+                terreno[next.site.f][next.site.c] != 'M';
+  bool check2 = abs((int)altura[next.site.f][next.site.c] -
+                    (int)altura[st.site.f][st.site.c]) <= 1 or
+                (abs((int)altura[next.site.f][next.site.c] -
+                    (int)altura[st.site.f][st.site.c]) <= 2 and st.zapatillas);
+  return check1 and check2;
+}
+
+EstadoI ComportamientoIngeniero::IntermediaCasillaIngeniero(const EstadoI &st) {
+    return NextCasillaIngeniero(st);  // exactamente 1 paso
+}
+
+// Comprueba que la casilla intermedia es transitable Y no tiene agente.
+// 'agentes' es el mapa booleano (true = casilla ocupada por un agente).
+bool ComportamientoIngeniero::IntermediaAccesible(const EstadoI &st,
+                                                  const vector<vector<unsigned char>> &terreno,
+                                                  const vector<vector<unsigned char>> &altura) {
+
+    EstadoI mid = IntermediaCasillaIngeniero(st);
+
+    bool transitable = terreno[mid.site.f][mid.site.c] != 'P' &&
+                       terreno[mid.site.f][mid.site.c] != 'M';
+
+    int delta = abs((int)altura[mid.site.f][mid.site.c] -
+                    (int)altura[st.site.f][st.site.c]);
+    bool alturaOk = delta <= 1 || (delta <= 2 && st.zapatillas);
+
+    return transitable && alturaOk;
+}
+
+EstadoI ComportamientoIngeniero::applyI(Action accion, const EstadoI &st,
+               const vector<vector<unsigned char>> &terreno,
+               const vector<vector<unsigned char>> &altura) {
+  EstadoI next = st;
+  switch (accion) {
+    case WALK:
+      if (CasillaAccesibleIngeniero(st, terreno, altura)) {
+        next = NextCasillaIngeniero(st);
+      }
+    break;
+    case JUMP:
+      if (IntermediaAccesible(st, terreno, altura)) {
+        EstadoI mid = NextCasillaIngeniero(st);
+
+        if (CasillaAccesibleIngeniero(mid, terreno, altura))
+          next = NextCasillaIngeniero(mid);
+      }
+    break;
+    case TURN_SR:
+      next.site.brujula = (Orientacion)((next.site.brujula + 1) % 8);
+    break;
+    case TURN_SL:
+      next.site.brujula = (Orientacion)((next.site.brujula + 7) % 8);
+    break;
+  }
+  return next;
+}
+
+list<Action> ComportamientoIngeniero::B_Anchura(const EstadoI &inicio, const EstadoI &fin,
+                                                const vector<vector<unsigned char>> &terreno,
+                                                const vector<vector<unsigned char>> &altura) {
+
+  NodoI current_node;
+  current_node.estado = inicio;
+
+  cout << "Inicio: " << current_node.estado.site.f << ", " << current_node.estado.site.c << endl;
+
+  list<NodoI> frontier;
+  set<NodoI> explored;
+  list<Action> path;
+
+  bool SolutionFound = (current_node.estado.site.f == fin.site.f &&
+                        current_node.estado.site.c == fin.site.c);
+
+  frontier.push_back(current_node);
+
+  while (!frontier.empty() and !SolutionFound) {
+    current_node = frontier.front();
+    frontier.pop_front();
+    explored.insert(current_node);
+
+    if (terreno[current_node.estado.site.f][current_node.estado.site.c] == 'D') {
+      current_node.estado.zapatillas = true;
+    }
+
+    if (!SolutionFound) {
+ 	  NodoI child_Jump = current_node;
+  	  child_Jump.estado = applyI(JUMP, current_node.estado, terreno, altura);
+
+      if (child_Jump.estado.site.f == fin.site.f and
+        child_Jump.estado.site.c == fin.site.c) {
+        child_Jump.secuencia.push_back(JUMP);
+        current_node = child_Jump;
+        SolutionFound = true;
+      } else if (explored.find(child_Jump) == explored.end()) {
+        child_Jump.secuencia.push_back(JUMP);
+        frontier.push_back(child_Jump);
+      }
+    }
+
+    if (!SolutionFound) {
+ 	  NodoI child_Walk = current_node;
+      child_Walk.estado = applyI(WALK, current_node.estado, terreno, altura);
+
+      if (child_Walk.estado.site.f == fin.site.f and
+        child_Walk.estado.site.c == fin.site.c) {
+        child_Walk.secuencia.push_back(WALK);
+        current_node = child_Walk;
+        SolutionFound = true;
+      } else if (explored.find(child_Walk) == explored.end()) {
+        child_Walk.secuencia.push_back(WALK);
+        frontier.push_back(child_Walk);
+      }
+    }
+
+    if (!SolutionFound) {
+      NodoI child_TurnSR = current_node;
+      child_TurnSR.estado = applyI(TURN_SR, current_node.estado, terreno, altura);
+
+      if (explored.find(child_TurnSR) == explored.end()) {
+        child_TurnSR.secuencia.push_back(TURN_SR);
+        frontier.push_back(child_TurnSR);
+      }
+
+      NodoI child_TurnSL = current_node;
+      child_TurnSL.estado = applyI(TURN_SL, current_node.estado, terreno, altura);
+
+      if (explored.find(child_TurnSL) == explored.end()) {
+        child_TurnSL.secuencia.push_back(TURN_SL);
+        frontier.push_back(child_TurnSL);
+      }
+    }
+
+    if (!SolutionFound and !frontier.empty()) {
+      current_node = frontier.front();
+      while (explored.find(current_node) != explored.end() and !frontier.empty()) {
+        frontier.pop_front();
+        current_node = frontier.front();
+      }
+    }
+  }
+
+  if (SolutionFound)
+    path = current_node.secuencia;
+
+  return path;
+}
+
 /**
  * @brief Comportamiento del ingeniero para el Nivel 2 (búsqueda).
  * @param sensores Datos actuales de los sensores.
@@ -254,8 +425,31 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_1(Sensores sensores
  */
 Action ComportamientoIngeniero::ComportamientoIngenieroNivel_2(Sensores sensores)
 {
-  // TODO: Implementar búsqueda para el Nivel 2.
-  return IDLE;
+  Action accion = IDLE;
+
+  if (!hayPlan) {
+    EstadoI inicio, fin;
+    inicio.site.f = sensores.posF;
+    inicio.site.c = sensores.posC;
+    inicio.site.brujula = sensores.rumbo;
+    inicio.zapatillas = tiene_zapatillas;
+    fin.site.f = sensores.BelPosF;
+    fin.site.c = sensores.BelPosC;
+    plan = B_Anchura(inicio, fin, mapaResultado, mapaCotas);
+    VisualizaPlan(inicio.site,plan);
+    hayPlan = plan.size() != 0;
+  }
+
+  if (hayPlan and plan.size() > 0) {
+    accion = plan.front();
+    plan.pop_front();
+  }
+
+  if (plan.size() == 0) {
+    hayPlan = false;
+  }
+
+  return accion;
 }
 
 /**
@@ -265,7 +459,45 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_2(Sensores sensores
  */
 Action ComportamientoIngeniero::ComportamientoIngenieroNivel_3(Sensores sensores)
 {
-  return IDLE;
+  Action accion = IDLE;
+
+  if (pasos_evasion > 0) {
+    pasos_evasion--;
+
+    if (sensores.agentes[2] != 't' &&
+      sensores.superficie[2] != 'P' &&
+      sensores.superficie[2] != 'M' &&
+      sensores.superficie[2] != 'B') {
+      ubicacion actual;
+      actual.f = sensores.posF;
+      actual.c = sensores.posC;
+      actual.brujula = sensores.rumbo;
+
+      if (EsAccesiblePorAltura(actual, tiene_zapatillas)) {
+        return last_action;
+      }
+    }
+    
+    return TURN_SR;
+  }
+
+  if (comprobando_obstaculiza) {
+    if (sensores.agentes[2] == 't' || sensores.agentes[6] == 't') {
+      accion = TURN_SL;
+      pasos_evasion = 2;
+    } else if (sensores.agentes[1] == 't' || sensores.agentes[4] == 't' || sensores.agentes[5] == 't') {
+      accion = TURN_SR;
+      pasos_evasion = 2;
+    } else if (sensores.agentes[3] == 't' || sensores.agentes[7] == 't' || sensores.agentes[8] == 't') {
+      accion = TURN_SL;
+      pasos_evasion = 2;
+    }
+  }
+
+  comprobando_obstaculiza = (comprobando_obstaculiza+1)%2;
+  last_action = accion;
+
+  return accion;
 }
 
 /**

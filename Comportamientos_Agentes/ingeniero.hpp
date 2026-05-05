@@ -11,6 +11,36 @@
 
 #include "comportamientos/comportamiento.hpp"
 
+struct EstadoI {
+  ubicacion site;
+  bool zapatillas;
+
+  bool operator==(const EstadoI &st) const {
+    return site == st.site and zapatillas == st.zapatillas;
+  }
+};
+
+// Nodo para el algoritmo de búsqueda
+struct NodoI {
+  EstadoI estado;
+  list<Action> secuencia;
+
+  bool operator==(const NodoI &node) const {
+    return estado == node.estado;
+  }
+
+  bool operator<(const NodoI &node) const{
+    if (estado.site.f < node.estado.site.f) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c < node.estado.site.c) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and
+             estado.site.brujula < node.estado.site.brujula) return true;
+    else if (estado.site.f == node.estado.site.f and estado.site.c == node.estado.site.c and
+             estado.site.brujula == node.estado.site.brujula and
+             estado.zapatillas < node.estado.zapatillas) return true;
+    else return false;
+  }
+};
+
 class ComportamientoIngeniero : public Comportamiento {
 public:
   // =========================================================================
@@ -38,7 +68,10 @@ public:
   ComportamientoIngeniero(std::vector<std::vector<unsigned char>> mapaR, 
                          std::vector<std::vector<unsigned char>> mapaC): 
                          Comportamiento(mapaR, mapaC) {
-    // Inicializar Variables de Estado
+    hayPlan = false;
+    tiene_zapatillas = false;
+    comprobando_obstaculiza = true;
+    pasos_evasion = 0;
   }
 
   ComportamientoIngeniero(const ComportamientoIngeniero &comport)
@@ -78,7 +111,29 @@ public:
    * @return Acción a realizar.
    */
   Action ComportamientoIngenieroNivel_1(Sensores sensores);
-  
+
+  EstadoI NextCasillaIngeniero(const EstadoI &st);
+
+  bool CasillaAccesibleIngeniero(const EstadoI &st,
+                                 const vector<vector<unsigned char>> &terreno,
+                                 const vector<vector<unsigned char>> &altura);
+
+  EstadoI IntermediaCasillaIngeniero(const EstadoI &st);
+
+  bool IntermediaAccesible(const EstadoI &st,
+                           const vector<vector<unsigned char>> &terreno,
+                           const vector<vector<unsigned char>> &altura);
+
+  EstadoI applyI(Action accion, const EstadoI & st,
+                 const vector<vector<unsigned char>> &terreno,
+                 const vector<vector<unsigned char>> &altura);
+
+  void PintaPlan(const list<Action> &plan, bool zap);
+
+  list<Action> B_Anchura(const EstadoI &inicio, const EstadoI &final,
+                         const vector<vector<unsigned char>> &terreno,
+                         const vector<vector<unsigned char>> &altura);
+
   /**
    * @brief Implementación del Nivel 2.
    * @param sensores Datos actuales de los sensores del agente.
@@ -209,6 +264,11 @@ private:
   int giros_consecutivos;
   int pasos_evasion;
   bool gira_izq;
+
+  // Deliberativos
+  list<Action> plan;
+  bool hayPlan;
+  bool comprobando_obstaculiza;
 };
 
 #endif
