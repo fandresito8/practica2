@@ -34,6 +34,10 @@ Action ComportamientoIngeniero::think(Sensores sensores)
   return accion;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 0
+// ─────────────────────────────────────────────────────────────────────────────
+
 int VeoCasillaInteresanteI(char i, char c, char d, bool zap, int vis_i, int vis_c, int vis_d)
 {
     if (c == 'U') return 2;
@@ -139,6 +143,10 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_0(Sensores sensores
   last_action = accion;
   return accion;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 1
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * @brief Comprueba si una celda es de tipo camino transitable.
@@ -246,6 +254,10 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_1(Sensores sensores
   return accion;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 2 INGENIERO
+// ─────────────────────────────────────────────────────────────────────────────
+
 EstadoI ComportamientoIngeniero::NextCasillaIngeniero(const EstadoI &st) {
   EstadoI siguiente = st;
   switch (st.site.brujula) {
@@ -270,6 +282,7 @@ bool ComportamientoIngeniero::CasillaAccesibleIngeniero(const EstadoI &st,
                               const vector<vector<unsigned char>> &altura) {
   EstadoI next = NextCasillaIngeniero(st);
   bool check1 = terreno[next.site.f][next.site.c] != 'P' and
+                terreno[next.site.f][next.site.c] != 'B' and
                 terreno[next.site.f][next.site.c] != 'M';
   bool check2 = abs((int)altura[next.site.f][next.site.c] -
                     (int)altura[st.site.f][st.site.c]) <= 1 or
@@ -278,19 +291,14 @@ bool ComportamientoIngeniero::CasillaAccesibleIngeniero(const EstadoI &st,
   return check1 and check2;
 }
 
-EstadoI ComportamientoIngeniero::IntermediaCasillaIngeniero(const EstadoI &st) {
-    return NextCasillaIngeniero(st);  // exactamente 1 paso
-}
-
-// Comprueba que la casilla intermedia es transitable Y no tiene agente.
-// 'agentes' es el mapa booleano (true = casilla ocupada por un agente).
 bool ComportamientoIngeniero::IntermediaAccesible(const EstadoI &st,
                                                   const vector<vector<unsigned char>> &terreno,
                                                   const vector<vector<unsigned char>> &altura) {
 
-    EstadoI mid = IntermediaCasillaIngeniero(st);
+    EstadoI mid = NextCasillaIngeniero(st);
 
     bool transitable = terreno[mid.site.f][mid.site.c] != 'P' &&
+                       terreno[mid.site.f][mid.site.c] != 'B' &&
                        terreno[mid.site.f][mid.site.c] != 'M';
 
     int delta = abs((int)altura[mid.site.f][mid.site.c] -
@@ -452,6 +460,10 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_2(Sensores sensores
   return accion;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 3 INGENIERO
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * @brief Comportamiento del ingeniero para el Nivel 3.
  * @param sensores Datos actuales de los sensores.
@@ -477,7 +489,7 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_3(Sensores sensores
         return last_action;
       }
     }
-    
+
     return TURN_SR;
   }
 
@@ -500,24 +512,407 @@ Action ComportamientoIngeniero::ComportamientoIngenieroNivel_3(Sensores sensores
   return accion;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 4
+// ─────────────────────────────────────────────────────────────────────────────
+
+int ComportamientoIngeniero::CosteInstallEnergia(unsigned char t) {
+    switch (t) {
+        case 'A': return 60;
+        case 'H': return 45;
+        case 'S': return 25;
+        case 'C': return 15;
+        case 'U': return 15;
+        default: return 30;
+    }
+}
+
+int ComportamientoIngeniero::CosteInstallEco(unsigned char t) {
+    switch (t) {
+        case 'A': return 50;
+        case 'H': return 45;
+        case 'S': return 25;
+        case 'C': return 15;
+        case 'U': return 15;
+        default: return 30;
+    }
+}
+
+int ComportamientoIngeniero::CosteRaise(unsigned char t) {
+    switch (t) {
+        case 'H': return 55;
+        case 'S': return 30;
+        case 'C': return 10;
+        case 'U': return 10;
+        default: return 40;
+    }
+}
+
+int ComportamientoIngeniero::CosteDig(unsigned char t) {
+    switch (t) {
+        case 'H': return 65;
+        case 'S': return 40;
+        case 'C': return 25;
+        case 'U': return 25;
+        default: return 50;
+    }
+}
+
+list<Paso> ComportamientoIngeniero::PlanificarTuberias(int belF, int belC, int max_energia, int max_eco) {
+
+    const int df[] = {-1, 1,  0, 0};
+    const int dc[] = { 0, 0,  1,-1};
+
+    int filas    = mapaResultado.size();
+    int columnas = mapaResultado[0].size();
+
+    list<NodoBFS4> frontier;
+
+    map<EstadoTuberia, int> min_energia_llegada;
+    map<EstadoTuberia, int> min_eco_llegada;
+
+    // --- 1. CONFIGURACIÓN INICIAL ---
+    unsigned char tIni = mapaResultado[belF][belC];
+    int cIni = (int)mapaCotas[belF][belC];
+
+    vector<int> opsIni = {0};
+    if (tIni != 'A' && cIni < 9) opsIni.push_back(1);
+    if (tIni != 'A' && cIni > 1) opsIni.push_back(-1);
+
+    for (int op : opsIni) {
+        int energia_inicial = 0;
+        int eco_inicial = 0;
+
+        // El primer paso (origen) no cuesta INSTALL, solo cuesta si lo excavamos/subimos
+        if (op == 1) {
+            energia_inicial += CosteRaise(tIni);
+            eco_inicial += CosteRaise(tIni);
+        } else if (op == -1) {
+            energia_inicial += CosteDig(tIni);
+            eco_inicial += CosteDig(tIni);
+        }
+
+        if (energia_inicial <= max_energia && eco_inicial <= max_eco) {
+            NodoBFS4 nodo;
+            nodo.estado = {belF, belC, op};
+            nodo.energia_gastada = energia_inicial;
+            nodo.eco_gastado = eco_inicial;
+
+            // Guardamos el coste individual en el Paso
+            Paso p; p.fil = belF; p.col = belC; p.op = op;
+            p.energia_paso = energia_inicial;
+            p.eco_paso = eco_inicial;
+            nodo.camino.push_back(p);
+
+            frontier.push_back(nodo);
+            min_energia_llegada[nodo.estado] = energia_inicial;
+            min_eco_llegada[nodo.estado] = eco_inicial;
+        }
+    }
+
+    // --- 2. BUCLE BFS PRINCIPAL ---
+    while (!frontier.empty()) {
+
+        NodoBFS4 current = frontier.front();
+        frontier.pop_front();
+
+        int f  = current.estado.f;
+        int c  = current.estado.c;
+        int op = current.estado.op;
+        int cotaActual = (int)mapaCotas[f][c] + op;
+
+        // --- META ALCANZADA (BLOQUE DE LOGS AMPLIADO) ---
+        if (mapaResultado[f][c] == 'U') {
+            cout << "\n=========================================================================\n";
+            cout << "¡PLAN VALIDO ENCONTRADO!\n";
+            cout << "Tramos totales: " << current.camino.size() << "\n";
+            cout << "Energia total gastada: " << current.energia_gastada << " / " << max_energia << "\n";
+            cout << "Impacto ecologico total: " << current.eco_gastado << " / " << max_eco << "\n";
+            cout << "-------------------------------------------------------------------------\n";
+            cout << "DESGLOSE DEL CAMINO PASO A PASO:\n";
+
+            int i = 0;
+            for (const Paso &p : current.camino) {
+                unsigned char terreno = mapaResultado[p.fil][p.col];
+                int alt_orig = (int)mapaCotas[p.fil][p.col];
+                int alt_final = alt_orig + p.op;
+
+                string nombre_op = " 0 (NADA) ";
+                if (p.op == 1)  nombre_op = " 1 (RAISE)";
+                if (p.op == -1) nombre_op = "-1 (DIG)  ";
+
+                cout << " [" << (i < 10 ? " " : "") << i << "] " // Formateo bonito para alinear
+                     << "pos:(" << p.fil << "," << p.col << ")\t"
+                     << "| ter: " << terreno << "\t"
+                     << "| alt: " << alt_orig << "->" << alt_final << "\t"
+                     << "| op: " << nombre_op << "\t"
+                     << "| Coste Paso -> E: " << p.energia_paso << ", Eco: " << p.eco_paso
+                     << endl;
+                i++;
+            }
+            cout << "=========================================================================\n\n";
+
+            return current.camino;
+        }
+
+        // Exploración de vecinos
+        for (int d = 0; d < 4; d++) {
+            int nf = f + df[d];
+            int nc = c + dc[d];
+
+            if (nf < 0 || nf >= filas || nc < 0 || nc >= columnas) continue;
+
+            unsigned char tNext = mapaResultado[nf][nc];
+            if (tNext == 'P' || tNext == 'M' || tNext == 'B') continue;
+
+            int cotaNextOrig = (int)mapaCotas[nf][nc];
+
+            vector<int> opsNext = {0};
+            if (tNext != 'A' && cotaNextOrig < 9) opsNext.push_back(1);
+            if (tNext != 'A' && cotaNextOrig > 1) opsNext.push_back(-1);
+
+            for (int onext : opsNext) {
+                int cotaNextFinal = cotaNextOrig + onext;
+                int diff = cotaActual - cotaNextFinal;
+
+                if (diff == 0 || diff == 1) { // Cumple la gravedad
+
+                    // Calculamos el coste de entrar en esta casilla (INSTALL) y modificarla
+                    // Sacamos el terreno de la casilla origen de este tramo
+                    unsigned char tActual = mapaResultado[f][c];
+
+                    // El coste de conectar es la suma del terreno de AMBOS agentes
+                    int e_paso_actual = CosteInstallEnergia(tActual) + CosteInstallEnergia(tNext);
+                    int eco_paso_actual = CosteInstallEco(tActual) + CosteInstallEco(tNext);
+
+                    // Si además el Ingeniero modifica la casilla de destino, sumamos ese coste
+                    if (onext == 1) {
+                        e_paso_actual += CosteRaise(tNext);
+                        eco_paso_actual += CosteRaise(tNext);
+                    } else if (onext == -1) {
+                        e_paso_actual += CosteDig(tNext);
+                        eco_paso_actual += CosteDig(tNext);
+                    }
+
+                    int nueva_energia = current.energia_gastada + e_paso_actual;
+                    int nuevo_eco = current.eco_gastado + eco_paso_actual;
+
+                    if (nueva_energia > max_energia || nuevo_eco > max_eco) {
+                        continue;
+                    }
+
+                    EstadoTuberia nextState = {nf, nc, onext};
+
+                    bool mejor_energia = min_energia_llegada.find(nextState) == min_energia_llegada.end() || nueva_energia < min_energia_llegada[nextState];
+                    bool mejor_eco = min_eco_llegada.find(nextState) == min_eco_llegada.end() || nuevo_eco < min_eco_llegada[nextState];
+
+                    if (mejor_energia || mejor_eco) {
+                        if (mejor_energia) min_energia_llegada[nextState] = nueva_energia;
+                        if (mejor_eco) min_eco_llegada[nextState] = nuevo_eco;
+
+                        NodoBFS4 child = current;
+                        child.estado = nextState;
+                        child.energia_gastada = nueva_energia;
+                        child.eco_gastado = nuevo_eco;
+
+                        // Guardamos el coste individual en el Paso
+                        Paso pNext; pNext.fil = nf; pNext.col = nc; pNext.op = onext;
+                        pNext.energia_paso = e_paso_actual;
+                        pNext.eco_paso = eco_paso_actual;
+                        child.camino.push_back(pNext);
+
+                        frontier.push_back(child);
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "No se encontro ningun plan valido que respete los limites." << endl;
+    return {};
+}
+
 /**
  * @brief Comportamiento del ingeniero para el Nivel 4.
  * @param sensores Datos actuales de los sensores.
  * @return Acción a realizar.
  */
-Action ComportamientoIngeniero::ComportamientoIngenieroNivel_4(Sensores sensores)
-{
+Action ComportamientoIngeniero::ComportamientoIngenieroNivel_4(Sensores sensores) {
+
+  if (!hayPlanPasosTuberias) {
+    planPasosTuberias = PlanificarTuberias(
+    sensores.BelPosF,
+    sensores.BelPosC,
+    sensores.energia,
+    sensores.max_ecologico
+    );
+
+    VisualizaRedTuberias(planPasosTuberias);
+
+    hayPlanPasosTuberias = true;
+  }
+
   return IDLE;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 5
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * @brief Comportamiento del ingeniero para el Nivel 5.
  * @param sensores Datos actuales de los sensores.
  * @return Acción a realizar.
  */
-Action ComportamientoIngeniero::ComportamientoIngenieroNivel_5(Sensores sensores)
-{
-  return IDLE;
+Action ComportamientoIngeniero::ComportamientoIngenieroNivel_5(Sensores sensores) {
+	Action accion = IDLE;
+
+    // Si pisamos unas zapatillas, actualizamos nuestro estado
+    if (sensores.superficie[0] == 'D') {
+        tiene_zapatillas = true;
+    }
+
+    switch(estadoAgente) {
+
+        case 0: // FASE 0: PLANIFICANDO LA RED
+          cout << "Ingeniero PLANIFICANDO" << endl;
+            if (!hayPlanPasosTuberias) {
+                // Generamos el plan con los límites de energía y ecología
+                planPasosTuberias = PlanificarTuberias(
+    			sensores.BelPosF,
+    			sensores.BelPosC,
+    			sensores.energia,
+    			sensores.max_ecologico
+    			);
+                VisualizaRedTuberias(planPasosTuberias);
+                hayPlanPasosTuberias = true;
+                tramo_actual = 0;
+            }
+            // Si el plan tiene al menos 2 casillas (origen y destino), pasamos a movernos
+            if (planPasosTuberias.size() > 1) {
+                estadoAgente = 1;
+                hayPlan = false; // Reseteamos el plan de movimiento por si acaso
+            }
+            break;
+
+        case 1: { // FASE 1: DESPLAZANDOSE AL TRAMO ACTUAL
+          cout << "Ingeniero DESPLAZANDOSE" << endl;
+            auto it = planPasosTuberias.begin();
+            std::advance(it, tramo_actual);
+            int destF = it->fil;
+            int destC = it->col;
+
+            // ¿Ya estamos en la casilla origen del tramo?
+            if (sensores.posF == destF && sensores.posC == destC) {
+                estadoAgente = 2; // Siguiente fase: Ajustar cota
+            } else {
+                // Si no estamos, usamos el BFS del Nivel 2 para llegar
+                if (!hayPlan) {
+                    EstadoI inicio, fin;
+                    inicio.site.f = sensores.posF;
+                    inicio.site.c = sensores.posC;
+                    inicio.site.brujula = sensores.rumbo;
+                    inicio.zapatillas = tiene_zapatillas;
+                    fin.site.f = destF;
+                    fin.site.c = destC;
+
+                    plan = B_Anchura(inicio, fin, mapaResultado, mapaCotas);
+                    hayPlan = plan.size() > 0;
+                }
+
+                if (hayPlan && !plan.empty()) {
+                    accion = plan.front();
+                    plan.pop_front();
+                    if (plan.empty()) hayPlan = false;
+                }
+            }
+            break;
+        }
+
+        case 2: { // FASE 2: AJUSTANDO LA COTA (RAISE / DIG)
+          cout << "Ingeniero AJUSTANDO COTA" << endl;
+            auto it = planPasosTuberias.begin();
+            std::advance(it, tramo_actual);
+            int op = it->op;
+
+            // Si hay que modificar el terreno y aún no lo hemos hecho
+            if (!cota_ajustada && op != 0) {
+                cota_ajustada = true;
+                if (op == 1) accion = RAISE;
+                else if (op == -1) accion = DIG;
+            } else {
+                // Si no hay que tocar nada o ya lo tocamos, pasamos a esperar
+                estadoAgente = 3;
+            }
+            break;
+        }
+
+        case 3: { // FASE 3: ORIENTARSE Y ESPERAR AL TÉCNICO
+          cout << "Ingeniero ORIENTANDOSE" << endl;
+            auto it = planPasosTuberias.begin();
+            std::advance(it, tramo_actual);
+            int curF = it->fil;
+            int curC = it->col;
+
+            std::advance(it, 1);
+            int nextF = it->fil;
+            int nextC = it->col;
+
+            // 1. Calcular hacia dónde tenemos que mirar (Norte, Sur, Este u Oeste)
+            Orientacion target = norte;
+            if (nextF < curF) target = norte;
+            else if (nextF > curF) target = sur;
+            else if (nextC > curC) target = este;
+            else if (nextC < curC) target = oeste;
+
+            // 2. Si no estamos mirando hacia allí, giramos
+            if (sensores.rumbo != target) {
+                int diff = (target - sensores.rumbo + 8) % 8;
+                if (diff <= 4) accion = TURN_SR;
+                else accion = TURN_SL;
+            } else {
+                // 3. Ya estamos mirando a la casilla destino. ¿Está el técnico enfrente?
+                if (sensores.enfrente) {
+                    estadoAgente = 4; // ¡Listo para instalar!
+                } else {
+                    // Si no está, lo llamamos con COME
+                    if (!he_llamado_tecnico) {
+                        accion = COME;
+                        he_llamado_tecnico = true;
+                    } else {
+                        accion = IDLE; // Esperamos pacientemente sin gastar energía[cite: 3]
+                    }
+                }
+            }
+            break;
+        }
+
+        case 4: { // FASE 4: INSTALACIÓN SIMULTÁNEA
+          cout << "Ingeniero INSTALANDO?" << sensores.enfrente << endl;
+          if (sensores.enfrente) {
+            accion = INSTALL;
+            tramo_actual++; // Avanzamos el progreso de la obra
+
+            if (tramo_actual >= planPasosTuberias.size() - 1) {
+              estadoAgente = 5; // ¡Obra terminada!
+            } else {
+              // Reseteamos variables para el siguiente tramo
+              estadoAgente = 1;
+              he_llamado_tecnico = false;
+              cota_ajustada = false;
+              hayPlan = false;
+            }
+          }
+        break;
+        }
+
+        case 5: // FASE 5: FIN DEL JUEGO
+          cout << "Ingeniero FIN" << endl;
+            accion = IDLE;
+            break;
+    }
+
+    return accion;
 }
 
 /**

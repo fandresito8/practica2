@@ -41,6 +41,25 @@ struct NodoI {
   }
 };
 
+struct EstadoTuberia {
+    int f;
+    int c;
+    int op; // La operación aplicada: -1 (DIG), 0 (Nada), 1 (RAISE)
+
+    bool operator<(const EstadoTuberia &o) const {
+        if (f != o.f) return f < o.f;
+        if (c != o.c) return c < o.c;
+        return op < o.op;
+    }
+};
+
+struct NodoBFS4 {
+    EstadoTuberia estado;
+    list<Paso> camino;
+    int energia_gastada;
+    int eco_gastado;
+};
+
 class ComportamientoIngeniero : public Comportamiento {
 public:
   // =========================================================================
@@ -72,6 +91,13 @@ public:
     tiene_zapatillas = false;
     comprobando_obstaculiza = true;
     pasos_evasion = 0;
+
+    hayPlanPasosTuberias = false;
+
+    estadoAgente = 0;
+    tramo_actual = 0;
+    cota_ajustada = false;
+    he_llamado_tecnico = false;
   }
 
   ComportamientoIngeniero(const ComportamientoIngeniero &comport)
@@ -111,28 +137,6 @@ public:
    * @return Acción a realizar.
    */
   Action ComportamientoIngenieroNivel_1(Sensores sensores);
-
-  EstadoI NextCasillaIngeniero(const EstadoI &st);
-
-  bool CasillaAccesibleIngeniero(const EstadoI &st,
-                                 const vector<vector<unsigned char>> &terreno,
-                                 const vector<vector<unsigned char>> &altura);
-
-  EstadoI IntermediaCasillaIngeniero(const EstadoI &st);
-
-  bool IntermediaAccesible(const EstadoI &st,
-                           const vector<vector<unsigned char>> &terreno,
-                           const vector<vector<unsigned char>> &altura);
-
-  EstadoI applyI(Action accion, const EstadoI & st,
-                 const vector<vector<unsigned char>> &terreno,
-                 const vector<vector<unsigned char>> &altura);
-
-  void PintaPlan(const list<Action> &plan, bool zap);
-
-  list<Action> B_Anchura(const EstadoI &inicio, const EstadoI &final,
-                         const vector<vector<unsigned char>> &terreno,
-                         const vector<vector<unsigned char>> &altura);
 
   /**
    * @brief Implementación del Nivel 2.
@@ -219,7 +223,37 @@ protected:
    */
   ubicacion Derecha(const ubicacion &actual) const;
 
+  EstadoI NextCasillaIngeniero(const EstadoI &st);
+
+  bool CasillaAccesibleIngeniero(const EstadoI &st,
+                                 const vector<vector<unsigned char>> &terreno,
+                                 const vector<vector<unsigned char>> &altura);
+
+  bool IntermediaAccesible(const EstadoI &st,
+                           const vector<vector<unsigned char>> &terreno,
+                           const vector<vector<unsigned char>> &altura);
+
+  EstadoI applyI(Action accion, const EstadoI & st,
+                 const vector<vector<unsigned char>> &terreno,
+                 const vector<vector<unsigned char>> &altura);
+
+  void PintaPlan(const list<Action> &plan, bool zap);
+
+  list<Action> B_Anchura(const EstadoI &inicio, const EstadoI &final,
+                         const vector<vector<unsigned char>> &terreno,
+                         const vector<vector<unsigned char>> &altura);
+
   bool es_camino(unsigned char c) const;
+
+  list<Paso> PlanificarTuberias(int belF, int belC, int max_energia, int max_eco);
+
+  int CosteInstallEnergia(unsigned char t);
+
+  int CosteInstallEco(unsigned char t);
+
+  int CosteRaise(unsigned char t);
+
+  int CosteDig(unsigned char t);
 
   /**
  * @brief Imprime por consola la secuencia de acciones de un plan para un agente.
@@ -257,6 +291,7 @@ private:
   // =========================================================================
   // VARIABLES DE ESTADO (PUEDEN SER EXTENDIDAS POR EL ALUMNO)
   // =========================================================================
+  // Reactivos (Niveles 0 y 1)
   Action last_action;
   bool tiene_zapatillas;
   vector<vector<int>> mapa_visitas;
@@ -265,10 +300,20 @@ private:
   int pasos_evasion;
   bool gira_izq;
 
-  // Deliberativos
+  // Deliberativos (Niveles 2 y 3)
   list<Action> plan;
   bool hayPlan;
   bool comprobando_obstaculiza;
+
+  // Nivel 4
+  list<Paso> planPasosTuberias;
+  bool hayPlanPasosTuberias;
+
+  //Nivel 5
+  int estadoAgente; // 0:PLANIFICAR, 1:DESPLAZAR, 2:COTA, 3:ESPERAR, 4:INSTALAR, 5:FIN
+  int tramo_actual;
+  bool cota_ajustada;
+  bool he_llamado_tecnico;
 };
 
 #endif

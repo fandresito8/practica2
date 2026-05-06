@@ -33,6 +33,8 @@ struct Paso {
   int fil;
   int col;
   int op; // -1 bajar la casilla, 0 dejar como está, 1 subir la casilla
+  int energia_paso;
+  int eco_paso;
 };
 
 typedef list<Paso> ListaCasillasPlan;

@@ -37,14 +37,14 @@ Action ComportamientoTecnico::think(Sensores sensores)
 
 int VeoCasillaInteresanteT(char i, char c, char d, bool zap, int vis_i, int vis_c, int vis_d)
 {
-    if (c == 'U') return 2;
-    else if (i == 'U') return 1;
-    else if (d == 'U') return 3;
-    else if (!zap) {
-        if (c == 'D') return 2;
-        else if (i == 'D') return 1;
-        else if (d == 'D') return 3;
-    }
+  if (c == 'U') return 2;
+  else if (i == 'U') return 1;
+  else if (d == 'U') return 3;
+  else if (!zap) {
+    if (c == 'D') return 2;
+    else if (i == 'D') return 1;
+    else if (d == 'D') return 3;
+  }
 
     bool ci = (i == 'C' || i == 'D');
     bool cc = (c == 'C' || c == 'D');
@@ -167,8 +167,8 @@ int VeoCasillaInteresanteT_N1(char i, char c, char d, bool zap, int vis_i, int v
   int vd = cd ? (d == 'S' ? vis_d * 2 : vis_d) : INT_MAX;
 
   if (vc <= vi && vc <= vd) return 2;
-  else if (vi <= vd)        return 1;
-  else                      return 3;
+  else if (vi <= vd) return 1;
+  else return 3;
 }
 
 /**
@@ -291,8 +291,36 @@ Action ComportamientoTecnico::ComportamientoTecnicoNivel_2(Sensores sensores) {
   return accion;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMIENZO NIVEL 3 TECNICO
+// ─────────────────────────────────────────────────────────────────────────────
+
 int ComportamientoTecnico::heuristica(const EstadoT &st, const EstadoT &fin) {
-    return abs(st.site.f - fin.site.f) + abs(st.site.c - fin.site.c);
+    return max(abs(st.site.f - fin.site.f), abs(st.site.c - fin.site.c));
+}
+
+int ComportamientoTecnico::costeTerreno(unsigned char t, bool zapatillas, int altura_origen, int altura_destino) {
+  if (altura_origen == -1 || altura_destino == -1) {
+    switch (t) {
+      case 'A': return 5;
+      case 'H': return 2;
+      default:  return 1;
+    }
+  }
+
+  int base = 0;
+  switch (t) {
+    case 'H': base = 6; break;
+    case 'A': base = 60; break;
+    case 'S': base = 3; break;
+    default: base = 1; break;
+  }
+
+  int diff = altura_destino - altura_origen;
+  if (diff > 0) base += 5;
+  else if (diff < 0) base -= 2;
+
+  return max(base, 1);
 }
 
 EstadoT ComportamientoTecnico::NextCasillaTecnico(const EstadoT &st) {
@@ -318,13 +346,13 @@ bool ComportamientoTecnico::CasillaAccesibleTecnico(const EstadoT &st,
                               const vector<vector<unsigned char>> &terreno,
                               const vector<vector<unsigned char>> &altura) {
   EstadoT next = NextCasillaTecnico(st);
-  bool check1 = terreno[next.site.f][next.site.c] != 'P' and
-                terreno[next.site.f][next.site.c] != 'M';
-  bool check2 = terreno[next.site.f][next.site.c] != 'B' or
-               (terreno[next.site.f][next.site.c] == 'B' and st.zapatillas);
-  bool check3 = abs((int)altura[next.site.f][next.site.c] -
+  bool transitable = terreno[next.site.f][next.site.c] != 'P' and
+                terreno[next.site.f][next.site.c] != 'M' and
+                (terreno[next.site.f][next.site.c] != 'B' or
+                (terreno[next.site.f][next.site.c] == 'B' and st.zapatillas));
+  bool alturaOK = abs((int)altura[next.site.f][next.site.c] -
                     (int)altura[st.site.f][st.site.c]) <= 1;
-  return check1 and check2 and check3;
+  return transitable and alturaOK;
 }
 
 EstadoT ComportamientoTecnico::applyT(Action accion, const EstadoT &st,
@@ -355,6 +383,9 @@ list<Action> ComportamientoTecnico::A_Star(const EstadoT &inicio, const EstadoT 
   map<EstadoT, int> coste_minimo;
   list<Action> path;
 
+  int coste_extra = 0,
+      nuevo_coste = 0;
+
   NodoT current_node;
   current_node.estado = inicio;
   current_node.g = 0;
@@ -366,9 +397,11 @@ list<Action> ComportamientoTecnico::A_Star(const EstadoT &inicio, const EstadoT 
   bool SolutionFound = false;
 
   while (!frontier.empty() && !SolutionFound) {
-
     current_node = frontier.top();
     frontier.pop();
+
+    if (current_node.g > coste_minimo[current_node.estado])
+      continue;
 
     if (current_node.estado.site.f == final.site.f &&
       current_node.estado.site.c == final.site.c) {
@@ -383,49 +416,75 @@ list<Action> ComportamientoTecnico::A_Star(const EstadoT &inicio, const EstadoT 
     NodoT child_Walk = current_node;
     child_Walk.estado = applyT(WALK, current_node.estado, terreno, altura);
 
-    int nuevo_coste = current_node.g + 1;
+    if (!(child_Walk.estado == current_node.estado)) {
+      coste_extra = costeTerreno(
+        terreno[current_node.estado.site.f][current_node.estado.site.c],
+        current_node.estado.zapatillas,
+        altura[current_node.estado.site.f][current_node.estado.site.c],
+        altura[child_Walk.estado.site.f][child_Walk.estado.site.c]
+      );
 
-    if (coste_minimo.find(child_Walk.estado) == coste_minimo.end() ||
+      nuevo_coste = current_node.g + coste_extra;
+
+      if (coste_minimo.find(child_Walk.estado) == coste_minimo.end() ||
         nuevo_coste < coste_minimo[child_Walk.estado]) {
 
-      child_Walk.g = nuevo_coste;
-      child_Walk.h = heuristica(child_Walk.estado, final);
-      coste_minimo[child_Walk.estado] = nuevo_coste;
+        child_Walk.g = nuevo_coste;
+        child_Walk.h = heuristica(child_Walk.estado, final);
 
-      child_Walk.secuencia.push_back(WALK);
-      frontier.push(child_Walk);
+        coste_minimo[child_Walk.estado] = nuevo_coste;
+
+        child_Walk.secuencia.push_back(WALK);
+        frontier.push(child_Walk);
+      }
     }
 
-    NodoT child_TurnSR = current_node;
-    child_TurnSR.estado = applyT(TURN_SR, current_node.estado, terreno, altura);
+    NodoT child_Turn_SR = current_node;
+    child_Turn_SR.estado = applyT(TURN_SR, current_node.estado, terreno, altura);
 
-    nuevo_coste = current_node.g + 1;
+    if (!(child_Turn_SR.estado == current_node.estado)) {
+      coste_extra = costeTerreno(
+        terreno[current_node.estado.site.f][current_node.estado.site.c],
+        current_node.estado.zapatillas
+      );
 
-    if (coste_minimo.find(child_TurnSR.estado) == coste_minimo.end() ||
-        nuevo_coste < coste_minimo[child_TurnSR.estado]) {
+      nuevo_coste = current_node.g + coste_extra;
 
-      child_TurnSR.g = nuevo_coste;
-      child_TurnSR.h = heuristica(child_TurnSR.estado, final);
-      coste_minimo[child_TurnSR.estado] = nuevo_coste;
+      if (coste_minimo.find(child_Turn_SR.estado) == coste_minimo.end() ||
+        nuevo_coste < coste_minimo[child_Turn_SR.estado]) {
 
-      child_TurnSR.secuencia.push_back(TURN_SR);
-      frontier.push(child_TurnSR);
+        child_Turn_SR.g = nuevo_coste;
+        child_Turn_SR.h = heuristica(child_Turn_SR.estado, final);
+
+        coste_minimo[child_Turn_SR.estado] = nuevo_coste;
+
+        child_Turn_SR.secuencia.push_back(TURN_SR);
+        frontier.push(child_Turn_SR);
+      }
     }
 
-    NodoT child_TurnSL = current_node;
-    child_TurnSL.estado = applyT(TURN_SL, current_node.estado, terreno, altura);
+    NodoT child_Turn_SL = current_node;
+    child_Turn_SL.estado = applyT(TURN_SL, current_node.estado, terreno, altura);
 
-    nuevo_coste = current_node.g + 1;
+    if (!(child_Turn_SL.estado == current_node.estado)) {
+      coste_extra = costeTerreno(
+        terreno[current_node.estado.site.f][current_node.estado.site.c],
+        current_node.estado.zapatillas
+      );
 
-    if (coste_minimo.find(child_TurnSL.estado) == coste_minimo.end() ||
-        nuevo_coste < coste_minimo[child_TurnSL.estado]) {
+      nuevo_coste = current_node.g + coste_extra;
 
-      child_TurnSL.g = nuevo_coste;
-      child_TurnSL.h = heuristica(child_TurnSL.estado, final);
-      coste_minimo[child_TurnSL.estado] = nuevo_coste;
+      if (coste_minimo.find(child_Turn_SL.estado) == coste_minimo.end() ||
+        nuevo_coste < coste_minimo[child_Turn_SL.estado]) {
 
-      child_TurnSL.secuencia.push_back(TURN_SL);
-      frontier.push(child_TurnSL);
+        child_Turn_SL.g = nuevo_coste;
+        child_Turn_SL.h = heuristica(child_Turn_SL.estado, final);
+
+        coste_minimo[child_Turn_SL.estado] = nuevo_coste;
+
+        child_Turn_SL.secuencia.push_back(TURN_SL);
+        frontier.push(child_Turn_SL);
+      }
     }
   }
 
@@ -477,13 +536,310 @@ Action ComportamientoTecnico::ComportamientoTecnicoNivel_4(Sensores sensores) {
   return IDLE;
 }
 
+int ComportamientoTecnico::CosteInstallEnergia(unsigned char t) {
+    switch (t) {
+        case 'A': return 60;
+        case 'H': return 45;
+        case 'S': return 25;
+        case 'C': return 15;
+        case 'U': return 15;
+        default: return 30;
+    }
+}
+
+int ComportamientoTecnico::CosteInstallEco(unsigned char t) {
+    switch (t) {
+        case 'A': return 50;
+        case 'H': return 45;
+        case 'S': return 25;
+        case 'C': return 15;
+        case 'U': return 15;
+        default: return 30;
+    }
+}
+
+int ComportamientoTecnico::CosteRaise(unsigned char t) {
+    switch (t) {
+        case 'H': return 55;
+        case 'S': return 30;
+        case 'C': return 10;
+        case 'U': return 10;
+        default: return 40;
+    }
+}
+
+int ComportamientoTecnico::CosteDig(unsigned char t) {
+    switch (t) {
+        case 'H': return 65;
+        case 'S': return 40;
+        case 'C': return 25;
+        case 'U': return 25;
+        default: return 50;
+    }
+}
+
+list<Paso> ComportamientoTecnico::PlanificarTuberias(int belF, int belC, int max_energia, int max_eco) {
+    const int df[] = {-1, 1,  0, 0};
+    const int dc[] = { 0, 0,  1,-1};
+
+    int filas    = mapaResultado.size();
+    int columnas = mapaResultado[0].size();
+
+    list<NodoBFS4T> frontier;
+
+    map<EstadoTuberiaT, int> min_energia_llegada;
+    map<EstadoTuberiaT, int> min_eco_llegada;
+
+    // --- 1. CONFIGURACIÓN INICIAL ---
+    unsigned char tIni = mapaResultado[belF][belC];
+    int cIni = (int)mapaCotas[belF][belC];
+
+    vector<int> opsIni = {0};
+    if (tIni != 'A' && cIni < 9) opsIni.push_back(1);
+    if (tIni != 'A' && cIni > 1) opsIni.push_back(-1);
+
+    for (int op : opsIni) {
+        int energia_inicial = 0;
+        int eco_inicial = 0;
+
+        // El primer paso (origen) no cuesta INSTALL, solo cuesta si lo excavamos/subimos
+        if (op == 1) {
+            energia_inicial += CosteRaise(tIni);
+            eco_inicial += CosteRaise(tIni);
+        } else if (op == -1) {
+            energia_inicial += CosteDig(tIni);
+            eco_inicial += CosteDig(tIni);
+        }
+
+        if (energia_inicial <= max_energia && eco_inicial <= max_eco) {
+            NodoBFS4T nodo;
+            nodo.estado = {belF, belC, op};
+            nodo.energia_gastada = energia_inicial;
+            nodo.eco_gastado = eco_inicial;
+
+            // Guardamos el coste individual en el Paso
+            Paso p; p.fil = belF; p.col = belC; p.op = op;
+            p.energia_paso = energia_inicial;
+            p.eco_paso = eco_inicial;
+            nodo.camino.push_back(p);
+
+            frontier.push_back(nodo);
+            min_energia_llegada[nodo.estado] = energia_inicial;
+            min_eco_llegada[nodo.estado] = eco_inicial;
+        }
+    }
+
+    // --- 2. BUCLE BFS PRINCIPAL ---
+    while (!frontier.empty()) {
+
+        NodoBFS4T current = frontier.front();
+        frontier.pop_front();
+
+        int f  = current.estado.f;
+        int c  = current.estado.c;
+        int op = current.estado.op;
+        int cotaActual = (int)mapaCotas[f][c] + op;
+
+        // --- META ALCANZADA (BLOQUE DE LOGS AMPLIADO) ---
+        if (mapaResultado[f][c] == 'U') {
+          return current.camino;
+        }
+
+        // Exploración de vecinos
+        for (int d = 0; d < 4; d++) {
+            int nf = f + df[d];
+            int nc = c + dc[d];
+
+            if (nf < 0 || nf >= filas || nc < 0 || nc >= columnas) continue;
+
+            unsigned char tNext = mapaResultado[nf][nc];
+            if (tNext == 'P' || tNext == 'M' || tNext == 'B') continue;
+
+            int cotaNextOrig = (int)mapaCotas[nf][nc];
+
+            vector<int> opsNext = {0};
+            if (tNext != 'A' && cotaNextOrig < 9) opsNext.push_back(1);
+            if (tNext != 'A' && cotaNextOrig > 1) opsNext.push_back(-1);
+
+            for (int onext : opsNext) {
+                int cotaNextFinal = cotaNextOrig + onext;
+                int diff = cotaActual - cotaNextFinal;
+
+                if (diff == 0 || diff == 1) { // Cumple la gravedad
+
+                    // Calculamos el coste de entrar en esta casilla (INSTALL) y modificarla
+                    // Sacamos el terreno de la casilla origen de este tramo
+                    unsigned char tActual = mapaResultado[f][c];
+
+                    // El coste de conectar es la suma del terreno de AMBOS agentes
+                    int e_paso_actual = CosteInstallEnergia(tActual) + CosteInstallEnergia(tNext);
+                    int eco_paso_actual = CosteInstallEco(tActual) + CosteInstallEco(tNext);
+
+                    // Si además el Ingeniero modifica la casilla de destino, sumamos ese coste
+                    if (onext == 1) {
+                        e_paso_actual += CosteRaise(tNext);
+                        eco_paso_actual += CosteRaise(tNext);
+                    } else if (onext == -1) {
+                        e_paso_actual += CosteDig(tNext);
+                        eco_paso_actual += CosteDig(tNext);
+                    }
+
+                    int nueva_energia = current.energia_gastada + e_paso_actual;
+                    int nuevo_eco = current.eco_gastado + eco_paso_actual;
+
+                    if (nueva_energia > max_energia || nuevo_eco > max_eco) {
+                        continue;
+                    }
+
+                    EstadoTuberiaT nextState = {nf, nc, onext};
+
+                    bool mejor_energia = min_energia_llegada.find(nextState) == min_energia_llegada.end() || nueva_energia < min_energia_llegada[nextState];
+                    bool mejor_eco = min_eco_llegada.find(nextState) == min_eco_llegada.end() || nuevo_eco < min_eco_llegada[nextState];
+
+                    if (mejor_energia || mejor_eco) {
+                        if (mejor_energia) min_energia_llegada[nextState] = nueva_energia;
+                        if (mejor_eco) min_eco_llegada[nextState] = nuevo_eco;
+
+                        NodoBFS4T child = current;
+                        child.estado = nextState;
+                        child.energia_gastada = nueva_energia;
+                        child.eco_gastado = nuevo_eco;
+
+                        // Guardamos el coste individual en el Paso
+                        Paso pNext; pNext.fil = nf; pNext.col = nc; pNext.op = onext;
+                        pNext.energia_paso = e_paso_actual;
+                        pNext.eco_paso = eco_paso_actual;
+                        child.camino.push_back(pNext);
+
+                        frontier.push_back(child);
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "No se encontro ningun plan valido que respete los limites." << endl;
+    return {};
+}
+
 /**
  * @brief Comportamiento del técnico para el Nivel 5.
  * @param sensores Datos actuales de los sensores.
  * @return Acción a realizar.
  */
 Action ComportamientoTecnico::ComportamientoTecnicoNivel_5(Sensores sensores) {
-  return IDLE;
+
+    // Zapatillas para pisar el bosque
+    if (sensores.superficie[0] == 'D') {
+        tiene_zapatillas = true;
+    }
+
+    Action accion = IDLE;
+
+    switch(estadoTecnico) {
+
+        case 0: // FASE 0: PLANIFICANDO LA RED
+            if (!plan_calculado) {
+                // El técnico calcula el mismo plan que el ingeniero
+                planTuberiasTecnico = PlanificarTuberias(sensores.BelPosF, sensores.BelPosC, sensores.energia, sensores.max_ecologico);
+                plan_calculado = true;
+                tramo_actual = 0;
+            }
+            if (planTuberiasTecnico.size() > 1) {
+                estadoTecnico = 1; // Pasamos a esperar órdenes
+            }
+        break;
+
+        case 1: // FASE 1: ESPERANDO LA SEÑAL (COME)
+            // El ingeniero nos avisa de que el terreno está listo
+            if (sensores.venpaca) {
+                estadoTecnico = 2; // Toca moverse
+                hayPlan = false;   // Reseteamos nuestro A* por seguridad
+            }
+        break;
+
+        case 2: { // FASE 2: DESPLAZÁNDOSE AL DESTINO DEL TRAMO
+            auto it = planTuberiasTecnico.begin();
+            // ¡OJO AQUÍ! El Ingeniero está en el origen del tramo. El Técnico va a la casilla DESTINO (+1).
+            std::advance(it, tramo_actual + 1);
+            int destF = it->fil;
+            int destC = it->col;
+
+            // ¿Hemos llegado a nuestra posición?
+            if (sensores.posF == destF && sensores.posC == destC) {
+                estadoTecnico = 3; // Siguiente fase: Girarse
+            } else {
+                // Usamos el A* del Nivel 3 para llegar
+                if (!hayPlan) {
+                    EstadoT inicio, fin;
+                    inicio.site.f = sensores.posF;
+                    inicio.site.c = sensores.posC;
+                    inicio.site.brujula = sensores.rumbo;
+                    inicio.zapatillas = tiene_zapatillas;
+                    fin.site.f = destF;
+                    fin.site.c = destC;
+
+                    plan = A_Star(inicio, fin, mapaResultado, mapaCotas);
+                    hayPlan = plan.size() > 0;
+                }
+
+                if (hayPlan && !plan.empty()) {
+                    accion = plan.front();
+                    plan.pop_front();
+                    if (plan.empty()) hayPlan = false;
+                }
+            }
+        break;
+        }
+
+        case 3: { // FASE 3: ENCARAR AL INGENIERO
+            auto it = planTuberiasTecnico.begin();
+            // Leemos dónde se supone que está parado el Ingeniero
+            std::advance(it, tramo_actual);
+            int ingF = it->fil;
+            int ingC = it->col;
+
+            // 1. Calculamos hacia dónde debemos mirar
+            Orientacion target = norte;
+            if (ingF < sensores.posF) target = norte;
+            else if (ingF > sensores.posF) target = sur;
+            else if (ingC > sensores.posC) target = este;
+            else if (ingC < sensores.posC) target = oeste;
+
+            // 2. Si no miramos hacia el ingeniero, giramos
+            if (sensores.rumbo != target) {
+                int diff = (target - sensores.rumbo + 8) % 8;
+                if (diff <= 4) accion = TURN_SR;
+                else accion = TURN_SL;
+            } else {
+                // 3. SINCRONIZACIÓN PERFECTA:
+                // Ya estamos mirando al Ingeniero. Vamos a quedarnos quietos (IDLE) 1 tick
+                // para que el Ingeniero actualice su sensor 'enfrente' y vea que estamos listos.
+                estadoTecnico = 4;
+                accion = IDLE;
+            }
+        break;
+        }
+
+        case 4: // FASE 4: INSTALACIÓN SIMULTÁNEA
+          if (sensores.enfrente) {
+            accion = INSTALL; // Ambos ejecutan esto en el mismo tick
+            tramo_actual++;   // Avanzamos al siguiente tramo
+
+            if (tramo_actual >= planTuberiasTecnico.size() - 1) {
+                estadoTecnico = 5; // ¡Obra terminada!
+            } else {
+                estadoTecnico = 1; // Volvemos a esperar el COME del siguiente tramo
+            }
+          }
+        break;
+
+        case 5: // FASE 5: FIN DEL JUEGO
+            accion = IDLE;
+        break;
+    }
+
+    return accion;
 }
 
 /**
@@ -494,8 +850,6 @@ Action ComportamientoTecnico::ComportamientoTecnicoNivel_5(Sensores sensores) {
 Action ComportamientoTecnico::ComportamientoTecnicoNivel_6(Sensores sensores) {
   return IDLE;
 }
-
-
 
 
 // =========================================================================

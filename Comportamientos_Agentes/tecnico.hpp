@@ -21,7 +21,6 @@
  * El técnico colabora con el ingeniero para resolver el problema de instalación de tuberías
  */
 
-// Estado del agente Técnico
 struct EstadoT {
   ubicacion site;
   bool zapatillas;
@@ -52,9 +51,35 @@ struct NodoT {
 };
 
 struct Comparador {
-    bool operator()(const NodoT &a, const NodoT &b) {
+    bool operator()(const NodoT &a, const NodoT &b) const {
         return (a.g + a.h) > (b.g + b.h); // menor f = mayor prioridad
     }
+};
+
+struct EstadoTuberiaT {
+  int f;
+  int c;
+  int op; // La operación aplicada: -1 (DIG), 0 (Nada), 1 (RAISE)
+
+  bool operator<(const EstadoTuberiaT &o) const {
+    if (f != o.f) return f < o.f;
+    if (c != o.c) return c < o.c;
+    return op < o.op;
+  }
+};
+
+struct NodoBFS4T {
+  EstadoTuberiaT estado;
+  list<Paso> camino;
+  int energia_gastada;
+  int eco_gastado;
+};
+
+enum EstadoTecnicoN5 {
+  ESPERANDO_LLAMADA,
+  NAVEGANDO,
+  ESPERANDO_INSTALACION,
+  INSTALANDO_TEC
 };
 
 class ComportamientoTecnico : public Comportamiento {
@@ -87,6 +112,10 @@ public:
     hayPlan = false;
     tiene_zapatillas = false;
     comprobando_obstaculiza = true;
+
+    estadoTecnico = 0;
+    tramo_actual = 0;
+    plan_calculado = false;
   }
 
   ComportamientoTecnico(const ComportamientoTecnico &comport): Comportamiento(comport) {}
@@ -134,20 +163,6 @@ public:
   void AnularMatrizA(vector<vector<unsigned char>> &m);
 
   void VisualizaPlan(const EstadoT &st, const list<Action> &plan);
-
-  EstadoT NextCasillaTecnico(const EstadoT &st);
-
-  bool CasillaAccesibleTecnico(const EstadoT &st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
-
-  EstadoT applyT(Action accion, const EstadoT & st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
-
-  void PintaPlan(const list<Action> &plan, bool zap);
-
-  list<Action> A_Star(const EstadoT &inicio, const EstadoT &final,
-                      const vector<vector<unsigned char>> &terreno,
-                      const vector<vector<unsigned char>> &altura);
-
-  int heuristica(const EstadoT &st, const EstadoT &fin);
 
 /**
  * @brief Comportamiento del técnico para el Nivel 3.
@@ -228,6 +243,36 @@ protected:
    */
   ubicacion Derecha(const ubicacion &actual) const;
 
+  EstadoT NextCasillaTecnico(const EstadoT &st);
+
+  bool CasillaAccesibleTecnico(const EstadoT &st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
+
+  EstadoT applyT(Action accion, const EstadoT & st, const vector<vector<unsigned char>> &terreno, const vector<vector<unsigned char>> &altura);
+
+  void PintaPlan(const list<Action> &plan, bool zap);
+
+  list<Action> A_Star(const EstadoT &inicio, const EstadoT &final,
+                      const vector<vector<unsigned char>> &terreno,
+                      const vector<vector<unsigned char>> &altura);
+
+  int heuristica(const EstadoT &st, const EstadoT &fin);
+
+  int costeTerreno(unsigned char t, bool zapatillas, int altura_origen = -1, int altura_destino = -1);
+
+  list<Action> B_Anchura(const EstadoT &inicio, const EstadoT &final,
+                         const vector<vector<unsigned char>> &terreno,
+                         const vector<vector<unsigned char>> &altura);
+
+  int CosteInstallEnergia(unsigned char t);
+
+  int CosteInstallEco(unsigned char t);
+
+  int CosteRaise(unsigned char t);
+
+  int CosteDig(unsigned char t);
+
+  list<Paso> PlanificarTuberias(int belF, int belC, int max_energia, int max_eco);
+
   /**
    * @brief Comprueba si una celda es de tipo transitable por defecto.
    * @param c Carácter que representa el tipo de superficie.
@@ -273,6 +318,12 @@ private:
   list<Action> plan;
   bool hayPlan;
   bool comprobando_obstaculiza;
+
+  // Nivel 5
+  int estadoTecnico; // 0:PLANIFICAR, 1:ESPERAR_LLAMADA, 2:DESPLAZAR, 3:ENCARAR, 4:INSTALAR, 5:FIN
+  int tramo_actual;
+  list<Paso> planTuberiasTecnico;
+  bool plan_calculado;
 };
 
 #endif
